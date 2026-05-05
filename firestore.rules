@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Members can read their own doc; authenticated users can read all members
+    match /members/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+      allow update, delete: if request.auth != null &&
+        get(/databases/$(database)/documents/members/$(request.auth.uid)).data.isJefe == true;
+    }
+    // All authenticated users can read; only admins can write
+    match /{collection}/{document} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null &&
+        get(/databases/$(database)/documents/members/$(request.auth.uid)).data.isJefe == true;
+    }
+  }
+}
