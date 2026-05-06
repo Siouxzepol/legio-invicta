@@ -140,37 +140,17 @@ const fbDel = (col, id)         => deleteDoc(doc(db, col, id));
 const getMemberRoleIds = m => m.roleIds?.length ? m.roleIds : (m.roleId ? [m.roleId] : []);
 
 /* ─────────────────────────────────────── */
-/*  COMING SOON — retirar cuando el sistema
-/*  de login esté listo para abrir         */
+/*  APP                                    */
 /* ─────────────────────────────────────── */
 export default function App() {
-  return (
-    <div style={{
-      ...S.page, display: "flex", flexDirection: "column",
-      alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: 32,
-    }}>
-      <img src="/logo.png" alt="Legio Invicta"
-        style={{ width: 280, height: 280, borderRadius: "50%", border: `2px solid ${C.border}` }} />
-      <div style={{
-        fontFamily: "'Oswald', sans-serif", fontSize: 15, letterSpacing: 8,
-        color: C.muted, textTransform: "uppercase",
-      }}>
-        Próximamente
-      </div>
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────── */
-/*  APP REAL (en espera)                   */
-/* ─────────────────────────────────────── */
-function AppReal() {
   const [user, setUser]     = useState(null);
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
   const [view, setView]     = useState("inicio");
 
-  const roles = useCollection("roles");
+  const roles         = useCollection("roles");
+  const orbatUnidades = useCollection("orbat_unidades", orderBy("orden"));
+  const orbatMiembros = useCollection("orbat_miembros");
 
   /* Auth listener */
   useEffect(() => {
@@ -230,8 +210,9 @@ function AppReal() {
 
   const navItems = [
     { id: "inicio",   label: "Inicio" },
+    { id: "orbat",    label: "ORBAT" },
     { id: "miembros", label: "Legionarios" },
-    ...(isJefe || canDo("approve_requests") || canDo("manage_roles") || canDo("manage_members")
+    ...(isJefe || canDo("approve_requests") || canDo("manage_roles") || canDo("manage_members") || canDo("manage_orbat")
       ? [{ id: "admin", label: "Mando" }]
       : []),
   ];
@@ -258,8 +239,9 @@ function AppReal() {
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 16px" }}>
         {view === "inicio"   && <InicioView member={member} roles={roles} />}
+        {view === "orbat"    && <OrbatView unidades={orbatUnidades} miembros={orbatMiembros} />}
         {view === "miembros" && <MiembrosView roles={roles} canDo={canDo} isJefe={isJefe} />}
-        {view === "admin"    && <AdminPanel roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} canDo={canDo} />}
+        {view === "admin"    && <AdminPanel roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} canDo={canDo} orbatUnidades={orbatUnidades} orbatMiembros={orbatMiembros} />}
       </div>
     </div>
   );
@@ -518,7 +500,7 @@ function MiembrosView({ roles, canDo, isJefe }) {
 /* ─────────────────────────────────────── */
 /*  PANEL ADMIN (MANDO)                    */
 /* ─────────────────────────────────────── */
-function AdminPanel({ roles, isJefe, isSuperAdmin, canDo }) {
+function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMiembros }) {
   const [tab, setTab] = useState("solicitudes");
 
   const tabs = [
@@ -526,6 +508,7 @@ function AdminPanel({ roles, isJefe, isSuperAdmin, canDo }) {
     { id: "rangos",      label: "Rangos",        show: isJefe || canDo("manage_roles") },
     { id: "legionarios", label: "Legionarios",   show: isJefe || canDo("manage_members") },
     { id: "bajas",       label: "Bajas",         show: isJefe || canDo("manage_members") },
+    { id: "orbat",       label: "ORBAT",         show: isJefe || canDo("manage_orbat") },
   ].filter(t => t.show);
 
   return (
@@ -549,6 +532,7 @@ function AdminPanel({ roles, isJefe, isSuperAdmin, canDo }) {
       {tab === "rangos"      && <TabRangos roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} />}
       {tab === "legionarios" && <TabLegionarios roles={roles} />}
       {tab === "bajas"       && <TabBajas />}
+      {tab === "orbat"       && <TabOrbat unidades={orbatUnidades} miembros={orbatMiembros} isJefe={isJefe} canDo={canDo} />}
     </div>
   );
 }
@@ -808,6 +792,242 @@ function TabBajas() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────── */
+/*  TAB ORBAT (ADMIN)                      */
+/* ─────────────────────────────────────── */
+function TabOrbat({ unidades, miembros, isJefe, canDo }) {
+  const [uNombre, setUNombre] = useState("");
+  const [uColor,  setUColor]  = useState("#C9A24A");
+  const [editUId, setEditUId] = useState(null);
+
+  const [mNombre,   setMNombre]   = useState("");
+  const [mHandle,   setMHandle]   = useState("");
+  const [mCargo,    setMCargo]    = useState("");
+  const [mUnidadId, setMUnidadId] = useState("");
+  const [editMId,   setEditMId]   = useState(null);
+
+  const canEdit = isJefe || canDo("manage_orbat");
+  const sorted  = [...unidades].sort((a, b) => (a.orden || 0) - (b.orden || 0));
+
+  const saveUnidad = async () => {
+    if (!uNombre.trim()) return;
+    if (editUId) {
+      await fbUpd("orbat_unidades", editUId, { nombre: uNombre.trim(), color: uColor });
+      setEditUId(null);
+    } else {
+      const maxOrden = unidades.reduce((m, u) => Math.max(m, u.orden || 0), 0);
+      await fbAdd("orbat_unidades", { nombre: uNombre.trim(), color: uColor, orden: maxOrden + 1 });
+    }
+    setUNombre(""); setUColor("#C9A24A");
+  };
+
+  const moveUnidad = (id, dir) => {
+    const i = sorted.findIndex(u => u._id === id);
+    if (dir === "up" && i > 0) {
+      fbSet("orbat_unidades", sorted[i]._id,   { orden: sorted[i-1].orden });
+      fbSet("orbat_unidades", sorted[i-1]._id, { orden: sorted[i].orden });
+    }
+    if (dir === "down" && i < sorted.length - 1) {
+      fbSet("orbat_unidades", sorted[i]._id,   { orden: sorted[i+1].orden });
+      fbSet("orbat_unidades", sorted[i+1]._id, { orden: sorted[i].orden });
+    }
+  };
+
+  const delUnidad = async u => {
+    const hasM = miembros.some(m => m.unidadId === u._id);
+    if (!confirm(hasM
+      ? `"${u.nombre}" tiene efectivos asignados. ¿Eliminar de todos modos?`
+      : `¿Eliminar la unidad "${u.nombre}"?`)) return;
+    await fbDel("orbat_unidades", u._id);
+  };
+
+  const saveMiembro = async () => {
+    if (!mNombre.trim() || !mUnidadId) return;
+    const data = { nombre: mNombre.trim(), handle: mHandle.trim(), cargo: mCargo.trim(), unidadId: mUnidadId };
+    if (editMId) {
+      await fbUpd("orbat_miembros", editMId, data);
+      setEditMId(null);
+    } else {
+      const maxOrden = miembros.filter(m => m.unidadId === mUnidadId).reduce((mx, m) => Math.max(mx, m.orden || 0), 0);
+      await fbAdd("orbat_miembros", { ...data, orden: maxOrden + 1 });
+    }
+    setMNombre(""); setMHandle(""); setMCargo(""); setMUnidadId("");
+  };
+
+  const delMiembro = async m => {
+    if (!confirm(`¿Eliminar a "${m.nombre}" del ORBAT?`)) return;
+    await fbDel("orbat_miembros", m._id);
+  };
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+      {/* Izquierda — Unidades */}
+      <div>
+        {canEdit && (
+          <div style={{ ...S.card, marginBottom: 16 }}>
+            <h3 style={S.h3}>{editUId ? "Editar unidad" : "Nueva unidad"}</h3>
+            <div style={{ marginBottom: 12 }}>
+              <label style={S.label}>Nombre</label>
+              <input style={S.input} value={uNombre} onChange={e => setUNombre(e.target.value)} placeholder="Ej: I Cohorte" />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={S.label}>Color</label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="color" value={uColor} onChange={e => setUColor(e.target.value)}
+                  style={{ width: 40, height: 32, border: "none", background: "none", cursor: "pointer" }} />
+                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: C.muted }}>{uColor}</span>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button style={S.btn("primary")} onClick={saveUnidad}>{editUId ? "Guardar" : "Crear unidad"}</button>
+              {editUId && (
+                <button style={S.btn("ghost")} onClick={() => { setEditUId(null); setUNombre(""); setUColor("#C9A24A"); }}>
+                  Cancelar
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div style={S.card}>
+          <h3 style={S.h3}>Unidades ({unidades.length})</h3>
+          {sorted.length === 0
+            ? <p style={{ color: C.muted }}>Sin unidades creadas.</p>
+            : sorted.map((u, i) => (
+              <div key={u._id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 0", borderBottom: `1px solid ${C.border}20` }}>
+                <div style={{ width: 12, height: 12, borderRadius: 2, background: u.color || C.accent, flexShrink: 0 }} />
+                <span style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>{u.nombre}</span>
+                {canEdit && (
+                  <>
+                    <button style={{ ...S.btn("ghost"), padding: "4px 8px", fontSize: 11 }} onClick={() => moveUnidad(u._id, "up")} disabled={i === 0}>▲</button>
+                    <button style={{ ...S.btn("ghost"), padding: "4px 8px", fontSize: 11 }} onClick={() => moveUnidad(u._id, "down")} disabled={i === sorted.length - 1}>▼</button>
+                    <button style={{ ...S.btn("ghost"), padding: "4px 8px", fontSize: 11 }} onClick={() => { setEditUId(u._id); setUNombre(u.nombre); setUColor(u.color || "#C9A24A"); }}>✎</button>
+                    <button style={{ ...S.btn("danger"), padding: "4px 8px", fontSize: 11 }} onClick={() => delUnidad(u)}>✕</button>
+                  </>
+                )}
+              </div>
+            ))
+          }
+        </div>
+      </div>
+
+      {/* Derecha — Efectivos */}
+      <div>
+        {canEdit && (
+          <div style={{ ...S.card, marginBottom: 16 }}>
+            <h3 style={S.h3}>{editMId ? "Editar efectivo" : "Añadir al ORBAT"}</h3>
+            <div style={{ marginBottom: 12 }}>
+              <label style={S.label}>Nombre</label>
+              <input style={S.input} value={mNombre} onChange={e => setMNombre(e.target.value)} placeholder="Nombre completo" />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={S.label}>Handle</label>
+              <input style={S.input} value={mHandle} onChange={e => setMHandle(e.target.value)} placeholder="handle_juego" />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={S.label}>Cargo / Rol táctico</label>
+              <input style={S.input} value={mCargo} onChange={e => setMCargo(e.target.value)} placeholder="Ej: Centurión, Optio, Miles…" />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={S.label}>Unidad</label>
+              <select style={S.input} value={mUnidadId} onChange={e => setMUnidadId(e.target.value)}>
+                <option value="">— Seleccionar unidad —</option>
+                {sorted.map(u => <option key={u._id} value={u._id}>{u.nombre}</option>)}
+              </select>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button style={S.btn("primary")} onClick={saveMiembro}>{editMId ? "Guardar" : "Añadir"}</button>
+              {editMId && (
+                <button style={S.btn("ghost")} onClick={() => { setEditMId(null); setMNombre(""); setMHandle(""); setMCargo(""); setMUnidadId(""); }}>
+                  Cancelar
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div style={S.card}>
+          <h3 style={S.h3}>Efectivos en ORBAT ({miembros.length})</h3>
+          {sorted.map(u => {
+            const uM = miembros.filter(m => m.unidadId === u._id);
+            if (!uM.length) return null;
+            return (
+              <div key={u._id} style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, letterSpacing: 2, color: u.color || C.accent, textTransform: "uppercase", marginBottom: 6, fontFamily: "'Oswald', sans-serif" }}>
+                  {u.nombre}
+                </div>
+                {uM.map(m => (
+                  <div key={m._id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: `1px solid ${C.border}20` }}>
+                    <div style={{ flex: 1 }}>
+                      <span style={{ fontSize: 13 }}>{m.nombre}</span>
+                      {m.handle && <span style={{ color: C.muted, fontSize: 11, marginLeft: 8, fontFamily: "'Share Tech Mono', monospace" }}>@{m.handle}</span>}
+                      {m.cargo && <span style={{ ...S.badge(C.accentDim), marginLeft: 8 }}>{m.cargo}</span>}
+                    </div>
+                    {canEdit && (
+                      <>
+                        <button style={{ ...S.btn("ghost"), padding: "3px 7px", fontSize: 11 }}
+                          onClick={() => { setEditMId(m._id); setMNombre(m.nombre); setMHandle(m.handle || ""); setMCargo(m.cargo || ""); setMUnidadId(m.unidadId); }}>✎</button>
+                        <button style={{ ...S.btn("danger"), padding: "3px 7px", fontSize: 11 }} onClick={() => delMiembro(m)}>✕</button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+          {miembros.length === 0 && <p style={{ color: C.muted }}>Sin efectivos en el ORBAT.</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────── */
+/*  VISTA PÚBLICA ORBAT                    */
+/* ─────────────────────────────────────── */
+function OrbatView({ unidades, miembros }) {
+  const sorted = [...unidades].sort((a, b) => (a.orden || 0) - (b.orden || 0));
+
+  return (
+    <div>
+      <h2 style={S.h2}>Orden de Batalla</h2>
+      {sorted.length === 0 ? (
+        <p style={{ color: C.muted }}>ORBAT no configurado. Accede al Panel de Mando para configurarlo.</p>
+      ) : sorted.map(u => {
+        const uM = miembros.filter(m => m.unidadId === u._id);
+        const color = u.color || C.accent;
+        return (
+          <div key={u._id} style={{ marginBottom: 32 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, borderLeft: `4px solid ${color}`, paddingLeft: 16, marginBottom: 16 }}>
+              <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 18, color, letterSpacing: 4, textTransform: "uppercase" }}>
+                {u.nombre}
+              </span>
+              <span style={S.badge(color)}>{uM.length} efectivos</span>
+            </div>
+            {uM.length === 0 ? (
+              <p style={{ color: C.muted, paddingLeft: 20, fontSize: 13 }}>Sin efectivos asignados.</p>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12, paddingLeft: 20 }}>
+                {uM.map(m => (
+                  <div key={m._id} style={{ ...S.card, borderLeft: `2px solid ${color}55` }}>
+                    <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, marginBottom: 4 }}>{m.nombre}</div>
+                    {m.handle && (
+                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: C.accent, marginBottom: 6 }}>
+                        @{m.handle}
+                      </div>
+                    )}
+                    {m.cargo && <span style={S.badge(C.accentDim)}>{m.cargo}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
