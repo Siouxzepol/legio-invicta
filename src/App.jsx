@@ -906,7 +906,7 @@ function TabRangos({ roles, isJefe, isSuperAdmin }) {
         </div>
       )}
 
-      <div style={S.card}>
+      <div style={{ ...S.card, marginBottom: 24 }}>
         <h3 style={S.h3}>Rangos ({roles.length})</h3>
         {roles.length === 0
           ? <p style={{ color: C.muted }}>Sin rangos creados.</p>
@@ -936,6 +936,75 @@ function TabRangos({ roles, isJefe, isSuperAdmin }) {
           ))
         }
       </div>
+
+      <AsignacionRangos roles={roles} canEdit={canEdit} />
+    </div>
+  );
+}
+
+function AsignacionRangos({ roles, canEdit }) {
+  const allMembers    = useCollection("members");
+  const activeMembers = allMembers.filter(m => m.accessStatus === "activo");
+  const [search, setSearch] = useState("");
+
+  const filtered = activeMembers.filter(m =>
+    (m.handle || "").toLowerCase().includes(search.toLowerCase()) ||
+    (m.displayName || "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  const addRole = async (m, roleId) => {
+    if (!roleId) return;
+    const current = getMemberRoleIds(m);
+    if (current.includes(roleId)) return;
+    await fbUpd("members", m._id, { roleIds: [...current, roleId] });
+  };
+
+  const delRole = async (m, roleId) => {
+    const current = getMemberRoleIds(m);
+    await fbUpd("members", m._id, { roleIds: current.filter(id => id !== roleId) });
+  };
+
+  return (
+    <div style={S.card}>
+      <h3 style={{ ...S.h3, marginBottom: 16 }}>Asignación de rangos</h3>
+      <input style={{ ...S.input, maxWidth: 320, marginBottom: 16 }} value={search}
+        onChange={e => setSearch(e.target.value)} placeholder="Buscar legionario…" />
+      {filtered.length === 0 && <p style={{ color: C.muted }}>Sin legionarios activos.</p>}
+      {filtered.map(m => {
+        const memberRoleIds  = getMemberRoleIds(m);
+        const memberRoles    = roles.filter(r => memberRoleIds.includes(r._id));
+        const availableRoles = roles.filter(r => !memberRoleIds.includes(r._id));
+        return (
+          <div key={m._id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: `1px solid ${C.border}20`, flexWrap: "wrap" }}>
+            <div style={{ minWidth: 140 }}>
+              <span style={{ fontFamily: "'Share Tech Mono', monospace", color: C.accent, fontSize: 13 }}>@{m.handle}</span>
+              {m.displayName && m.displayName !== m.handle && (
+                <span style={{ color: C.muted, fontSize: 12, marginLeft: 8 }}>{m.displayName}</span>
+              )}
+            </div>
+            <div style={{ flex: 1, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              {memberRoles.map(r => (
+                <span key={r._id} style={{ ...S.badge(C.accent), display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  {r.insigniaUrl && <img src={r.insigniaUrl} alt="" style={{ width: 12, height: 16, objectFit: "contain" }} />}
+                  {r.name}
+                  {canEdit && (
+                    <span onClick={() => delRole(m, r._id)}
+                      style={{ cursor: "pointer", color: C.danger, fontWeight: 700, marginLeft: 2 }}>×</span>
+                  )}
+                </span>
+              ))}
+              {memberRoles.length === 0 && <span style={{ color: C.muted, fontSize: 12 }}>Sin rango</span>}
+            </div>
+            {canEdit && availableRoles.length > 0 && (
+              <select defaultValue="" style={{ ...S.input, width: "auto", minWidth: 160 }}
+                onChange={e => { addRole(m, e.target.value); e.target.value = ""; }}>
+                <option value="" disabled>+ Asignar rango</option>
+                {availableRoles.map(r => <option key={r._id} value={r._id}>{r.name}</option>)}
+              </select>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1082,6 +1151,8 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
 
   const [uNombre, setUNombre] = useState("");
   const [uColor,  setUColor]  = useState("#C9A24A");
+  const [uEmblem, setUEmblem] = useState("");
+  const [uNivel,  setUNivel]  = useState(1);
   const [editUId, setEditUId] = useState(null);
 
   const [mMemberId, setMMemberId] = useState("");
@@ -1103,14 +1174,15 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
 
   const saveUnidad = async () => {
     if (!uNombre.trim()) return;
+    const data = { nombre: uNombre.trim(), color: uColor, emblemUrl: uEmblem.trim(), nivel: uNivel };
     if (editUId) {
-      await fbUpd("orbat_unidades", editUId, { nombre: uNombre.trim(), color: uColor });
+      await fbUpd("orbat_unidades", editUId, data);
       setEditUId(null);
     } else {
       const maxOrden = unidades.reduce((m, u) => Math.max(m, u.orden || 0), 0);
-      await fbAdd("orbat_unidades", { nombre: uNombre.trim(), color: uColor, orden: maxOrden + 1 });
+      await fbAdd("orbat_unidades", { ...data, orden: maxOrden + 1 });
     }
-    setUNombre(""); setUColor("#C9A24A");
+    setUNombre(""); setUColor("#C9A24A"); setUEmblem(""); setUNivel(1);
   };
 
   const moveUnidad = (id, dir) => {
@@ -1169,7 +1241,7 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
               <label style={S.label}>Nombre</label>
               <input style={S.input} value={uNombre} onChange={e => setUNombre(e.target.value)} placeholder="Ej: I Cohorte" />
             </div>
-            <div style={{ marginBottom: 16 }}>
+            <div style={{ marginBottom: 12 }}>
               <label style={S.label}>Color</label>
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input type="color" value={uColor} onChange={e => setUColor(e.target.value)}
@@ -1177,10 +1249,25 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
                 <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: C.muted }}>{uColor}</span>
               </div>
             </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={S.label}>Emblema de unidad (URL)</label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input style={{ ...S.input, flex: 1 }} value={uEmblem} onChange={e => setUEmblem(e.target.value)} placeholder="/emblemas/foxtrot.png" />
+                {uEmblem && <img src={uEmblem} alt="emblema" style={{ width: 40, height: 40, objectFit: "contain", background: "rgba(255,255,255,0.04)", borderRadius: 4 }} />}
+              </div>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={S.label}>Nivel en la jerarquía</label>
+              <select style={S.input} value={uNivel} onChange={e => setUNivel(Number(e.target.value))}>
+                {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                  <option key={n} value={n}>Nivel {n}{n === 1 ? " — Mando superior" : n === 2 ? " — Unidades principales" : ""}</option>
+                ))}
+              </select>
+            </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button style={S.btn("primary")} onClick={saveUnidad}>{editUId ? "Guardar" : "Crear unidad"}</button>
               {editUId && (
-                <button style={S.btn("ghost")} onClick={() => { setEditUId(null); setUNombre(""); setUColor("#C9A24A"); }}>
+                <button style={S.btn("ghost")} onClick={() => { setEditUId(null); setUNombre(""); setUColor("#C9A24A"); setUEmblem(""); setUNivel(1); }}>
                   Cancelar
                 </button>
               )}
@@ -1194,13 +1281,17 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
             ? <p style={{ color: C.muted }}>Sin unidades creadas.</p>
             : sorted.map((u, i) => (
               <div key={u._id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 0", borderBottom: `1px solid ${C.border}20` }}>
-                <div style={{ width: 12, height: 12, borderRadius: 2, background: u.color || C.accent, flexShrink: 0 }} />
+                {u.emblemUrl
+                  ? <img src={u.emblemUrl} alt="" style={{ width: 22, height: 22, objectFit: "contain", flexShrink: 0 }} />
+                  : <div style={{ width: 12, height: 12, borderRadius: 2, background: u.color || C.accent, flexShrink: 0 }} />
+                }
                 <span style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>{u.nombre}</span>
+                <span style={S.badge(C.accentDim)}>Nv.{u.nivel || 1}</span>
                 {canEdit && (
                   <>
                     <button style={{ ...S.btn("ghost"), padding: "4px 8px", fontSize: 11 }} onClick={() => moveUnidad(u._id, "up")} disabled={i === 0}>▲</button>
                     <button style={{ ...S.btn("ghost"), padding: "4px 8px", fontSize: 11 }} onClick={() => moveUnidad(u._id, "down")} disabled={i === sorted.length - 1}>▼</button>
-                    <button style={{ ...S.btn("ghost"), padding: "4px 8px", fontSize: 11 }} onClick={() => { setEditUId(u._id); setUNombre(u.nombre); setUColor(u.color || "#C9A24A"); }}>✎</button>
+                    <button style={{ ...S.btn("ghost"), padding: "4px 8px", fontSize: 11 }} onClick={() => { setEditUId(u._id); setUNombre(u.nombre); setUColor(u.color || "#C9A24A"); setUEmblem(u.emblemUrl || ""); setUNivel(u.nivel || 1); }}>✎</button>
                     <button style={{ ...S.btn("danger"), padding: "4px 8px", fontSize: 11 }} onClick={() => delUnidad(u)}>✕</button>
                   </>
                 )}
@@ -1313,6 +1404,10 @@ function OrbatView({ unidades, miembros, roles, especialidades, condecoraciones,
   const allMembers = useCollection("members");
   const sorted = [...unidades].sort((a, b) => (a.orden || 0) - (b.orden || 0));
 
+  // Agrupar unidades por nivel (1-10), ordenadas por orden dentro de cada nivel
+  const niveles = [...new Set(sorted.map(u => u.nivel || 1))].sort((a, b) => a - b);
+  const porNivel = nivel => sorted.filter(u => (u.nivel || 1) === nivel);
+
   const getMemberRoles = memberId => {
     if (!memberId) return [];
     const mem = allMembers.find(m => m._id === memberId);
@@ -1323,90 +1418,179 @@ function OrbatView({ unidades, miembros, roles, especialidades, condecoraciones,
   const getMemberDecos = memberId =>
     (condecoraciones || []).filter(d => d.memberId === memberId && d.imagenUrl);
 
+  const OrbatCard = ({ m, color }) => {
+    const memberRoles = getMemberRoles(m.memberId);
+    const decos       = getMemberDecos(m.memberId);
+    const rangoP      = memberRoles.find(r => r.insigniaUrl) || memberRoles[0] || null;
+    const bc          = color || C.accent;
+    return (
+      <div style={{
+        border: `1px solid ${bc}66`,
+        borderRadius: 6,
+        padding: "10px 16px",
+        textAlign: "center",
+        minWidth: 150,
+        background: "rgba(17,18,20,0.97)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 2,
+        boxShadow: `0 0 12px ${bc}1a`,
+      }}>
+        {rangoP?.insigniaUrl && (
+          <img src={rangoP.insigniaUrl} alt={rangoP.name} style={{ width: 28, height: 36, objectFit: "contain", marginBottom: 2 }} />
+        )}
+        {rangoP && (
+          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 9, color: C.accentDim, letterSpacing: 2, textTransform: "uppercase" }}>
+            {rangoP.name}
+          </div>
+        )}
+        <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, color: C.text }}>{m.nombre}</div>
+        {m.handle && (
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: bc }}>@{m.handle}</div>
+        )}
+        {(m.espIds || []).length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 3, justifyContent: "center", marginTop: 3 }}>
+            {(m.espIds || []).map(id => {
+              const esp = especialidades.find(e => e._id === id);
+              return esp ? (
+                <span key={id} style={{ fontSize: 9, fontFamily: "'Share Tech Mono', monospace", color: esp.color || C.accentDim }}>
+                  {esp.nombre}
+                </span>
+              ) : null;
+            })}
+          </div>
+        )}
+        {decos.length > 0 && (
+          <div style={{ display: "flex", gap: 3, marginTop: 3, justifyContent: "center" }}>
+            {decos.map(d => (
+              <img key={d._id} src={d.imagenUrl} alt={d.nombre} title={d.nombre} style={{ width: 18, height: 18, objectFit: "contain" }} />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const VLine = ({ color, h = 24 }) => (
+    <div style={{ width: 2, height: h, background: color || C.accent, flexShrink: 0 }} />
+  );
+
   return (
     <div>
-      <h2 style={S.h2}>Orden de Batalla</h2>
-      {sorted.length === 0 ? (
+      <h2 style={S.h2}>Jerarquía</h2>
+
+      {unidades.length === 0 ? (
         <p style={{ color: C.muted }}>ORBAT no configurado. Accede al Panel de Mando para configurarlo.</p>
-      ) : sorted.map(u => {
-        const uM    = miembros.filter(m => m.unidadId === u._id);
-        const color = u.color || C.accent;
-        return (
-          <div key={u._id} style={{ marginBottom: 32 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, borderLeft: `4px solid ${color}`, paddingLeft: 16, marginBottom: 16 }}>
-              <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 18, color, letterSpacing: 4, textTransform: "uppercase" }}>
-                {u.nombre}
-              </span>
-              <span style={S.badge(color)}>{uM.length} efectivos</span>
+      ) : (
+        <div style={{ overflowX: "auto", paddingBottom: 32 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: "max-content", margin: "0 auto", paddingTop: 8 }}>
+
+            {/* Nodo raíz */}
+            <div style={{
+              border: `2px solid ${C.accent}`,
+              borderRadius: 6,
+              padding: "10px 40px",
+              fontFamily: "'Oswald', sans-serif",
+              fontSize: 18,
+              letterSpacing: 4,
+              color: C.accent,
+              textTransform: "uppercase",
+              background: "rgba(201,162,74,0.08)",
+              boxShadow: `0 0 20px rgba(201,162,74,0.15)`,
+            }}>
+              LEGIO INVICTA
             </div>
-            {uM.length === 0 ? (
-              <p style={{ color: C.muted, paddingLeft: 20, fontSize: 13 }}>Sin efectivos asignados.</p>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12, paddingLeft: 20 }}>
-                {uM.map(m => {
-                  const memberRoles = getMemberRoles(m.memberId);
-                  const decos       = getMemberDecos(m.memberId);
-                  /* Rango principal: primer rol con insigniaUrl, o el primero */
-                  const rangoP  = memberRoles.find(r => r.insigniaUrl) || memberRoles[0] || null;
-                  const extrasR = memberRoles.filter(r => r._id !== rangoP?._id);
-                  return (
-                    <div key={m._id} style={{ ...S.card, borderLeft: `2px solid ${color}55`, display: "flex", gap: 10, alignItems: "flex-start" }}>
 
-                      {/* Izquierda — insignia de rango */}
-                      <div style={{ width: 36, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 2 }}>
-                        {rangoP?.insigniaUrl && (
-                          <img src={rangoP.insigniaUrl} alt={rangoP.name} title={rangoP.name}
-                            style={{ width: 32, height: 40, objectFit: "contain" }} />
-                        )}
-                      </div>
-
-                      {/* Centro — rango + nombre + handle + especialidades */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        {rangoP && (
-                          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 10, color: C.accentDim, letterSpacing: 2, textTransform: "uppercase", marginBottom: 1 }}>
-                            {rangoP.name}
+            {/* Filas por nivel */}
+            {niveles.map(nivel => {
+              const unidadesNivel = porNivel(nivel);
+              return (
+                <div key={nivel} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
+                  <VLine />
+                  <div className="orbat-units-row">
+                    {unidadesNivel.map(u => {
+                      const color = u.color || C.accent;
+                      const uM = [...miembros.filter(m => m.unidadId === u._id)]
+                        .sort((a, b) => (a.orden || 0) - (b.orden || 0));
+                      return (
+                        <div key={u._id} className="orbat-unit-col">
+                          <div style={{ width: 2, height: 20, background: color }} />
+                          {/* Cabecera de unidad */}
+                          <div style={{
+                            border: `2px solid ${color}`,
+                            borderRadius: 6,
+                            padding: "8px 20px",
+                            fontFamily: "'Oswald', sans-serif",
+                            fontSize: 13,
+                            letterSpacing: 3,
+                            textTransform: "uppercase",
+                            color,
+                            background: "rgba(17,18,20,0.97)",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            gap: 6,
+                            minWidth: 110,
+                            textAlign: "center",
+                            boxShadow: `0 0 14px ${color}22`,
+                          }}>
+                            {u.emblemUrl && (
+                              <img src={u.emblemUrl} alt={u.nombre} style={{ width: 36, height: 36, objectFit: "contain" }} />
+                            )}
+                            {u.nombre}
                           </div>
-                        )}
-                        <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, marginBottom: 2 }}>{m.nombre}</div>
-                        {m.handle && (
-                          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: C.accent, marginBottom: 6 }}>
-                            @{m.handle}
-                          </div>
-                        )}
-                        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                          {extrasR.map(r => (
-                            <span key={r._id} style={S.badge(C.accent)}>{r.name}</span>
-                          ))}
-                          {(m.espIds || []).map(id => {
-                            const esp = especialidades.find(e => e._id === id);
-                            return esp ? <span key={id} style={S.badge(esp.color || C.accentDim)}>{esp.nombre}</span> : null;
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Derecha — condecoraciones */}
-                      {decos.length > 0 && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center", flexShrink: 0 }}>
-                          {decos.map(d => (
-                            <img key={d._id} src={d.imagenUrl} alt={d.nombre} title={d.nombre}
-                              style={{ width: 28, height: 28, objectFit: "contain" }} />
+                          {/* Miembros de la unidad */}
+                          {uM.map(m => (
+                            <div key={m._id} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                              <div style={{ width: 2, height: 16, background: `${color}88` }} />
+                              <OrbatCard m={m} color={color} />
+                            </div>
                           ))}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        );
-      })}
-      {/* Sala de la Fama — desplegable al final del ORBAT */}
+        </div>
+      )}
+
+      {/* Sala de la Fama */}
       {salaFama?.length > 0 && (
         <Collapsible title="Sala de la Fama" badge={salaFama.length}>
           <SalaFamaGrid salaFama={salaFama} condecoraciones={condecoraciones} />
         </Collapsible>
       )}
+
+      <style>{`
+        .orbat-units-row {
+          display: flex;
+          align-items: flex-start;
+        }
+        .orbat-unit-col {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 0 28px;
+          position: relative;
+        }
+        .orbat-unit-col::before,
+        .orbat-unit-col::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          height: 2px;
+          background: ${C.accent};
+          width: 50%;
+        }
+        .orbat-unit-col::before { left: 0; }
+        .orbat-unit-col::after  { right: 0; }
+        .orbat-unit-col:first-child::before { display: none; }
+        .orbat-unit-col:last-child::after   { display: none; }
+      `}</style>
     </div>
   );
 }
