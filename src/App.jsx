@@ -19,16 +19,16 @@ document.head.appendChild(fontLink);
 
 /* ── Palette ── */
 const C = {
-  bg:       "#2A0A0A",
-  surface:  "#1e0707",
-  surface2: "#230909",
-  border:   "#4a1a1a",
+  bg:       "#111214",
+  surface:  "#1a1b1e",
+  surface2: "#1e1f22",
+  border:   "#2e2f33",
   accent:   "#C9A24A",
   accentDim:"#8a6e2a",
   red:      "#8B1010",
   redBright:"#c0392b",
   text:     "#e8e0d0",
-  muted:    "#7a6a60",
+  muted:    "#7a7a82",
   danger:   "#c0392b",
   green:    "#4caf50",
 };
@@ -67,7 +67,7 @@ const S = {
     borderRadius: 6, padding: 28,
   },
   input: {
-    width: "100%", background: "#1a0505", border: `1px solid ${C.border}`,
+    width: "100%", background: "#16171a", border: `1px solid ${C.border}`,
     borderRadius: 4, color: C.text, padding: "10px 14px", fontSize: 15,
     fontFamily: "'Share Tech Mono', monospace", outline: "none", boxSizing: "border-box",
   },

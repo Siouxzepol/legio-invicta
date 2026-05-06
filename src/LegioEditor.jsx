@@ -6,10 +6,10 @@ import { Color } from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
 
 const C = {
-  bg:     "#2A0A0A",
-  border: "#4a1a1a",
+  bg:     "#111214",
+  border: "#2e2f33",
   accent: "#C9A24A",
-  muted:  "#7a6a60",
+  muted:  "#7a7a82",
   text:   "#e8e0d0",
 };
 
@@ -45,7 +45,7 @@ export default function LegioEditor({ content, onChange, minHeight = 320, sticky
       {/* Toolbar sticky */}
       <div style={{
         position: "sticky", top: stickyTop, zIndex: 10,
-        background: "#1a0505", borderBottom: `1px solid ${C.border}`,
+        background: "#16171a", borderBottom: `1px solid ${C.border}`,
         borderRadius: "4px 4px 0 0",
         padding: "6px 10px", display: "flex", flexWrap: "wrap", gap: 4,
       }}>
@@ -80,7 +80,7 @@ export default function LegioEditor({ content, onChange, minHeight = 320, sticky
       </div>
 
       {/* Editor area */}
-      <EditorContent editor={editor} style={{ padding: "12px 16px", background: "#1a0505", borderRadius: "0 0 4px 4px" }} />
+      <EditorContent editor={editor} style={{ padding: "12px 16px", background: "#16171a", borderRadius: "0 0 4px 4px" }} />
 
       <style>{`
         .ProseMirror { outline: none; color: ${C.text}; font-size: 14px; line-height: 1.7; font-family: 'Inter', sans-serif; min-height: ${minHeight}px; }
@@ -92,8 +92,8 @@ export default function LegioEditor({ content, onChange, minHeight = 320, sticky
         .ProseMirror blockquote { border-left: 3px solid ${C.accent}; padding-left: 12px; color: ${C.muted}; margin: 8px 0; font-style: italic; }
         .ProseMirror hr { border: none; border-top: 1px solid ${C.border}; margin: 16px 0; }
         .ProseMirror p { margin: 6px 0; }
-        .ProseMirror code { font-family: 'Share Tech Mono', monospace; background: #2a1010; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
-        .ProseMirror pre { background: #1a0808; padding: 12px; border-radius: 4px; overflow-x: auto; }
+        .ProseMirror code { font-family: 'Share Tech Mono', monospace; background: #1e1f22; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+        .ProseMirror pre { background: #16171a; padding: 12px; border-radius: 4px; overflow-x: auto; }
         .legio-render h1 { font-family: 'Oswald', sans-serif; font-size: 22px; color: ${C.accent}; letter-spacing: 2px; margin: 16px 0 8px; text-transform: uppercase; }
         .legio-render h2 { font-family: 'Oswald', sans-serif; font-size: 18px; color: ${C.accent}; letter-spacing: 1px; margin: 14px 0 6px; }
         .legio-render h3 { font-family: 'Oswald', sans-serif; font-size: 15px; margin: 12px 0 4px; }
@@ -102,7 +102,7 @@ export default function LegioEditor({ content, onChange, minHeight = 320, sticky
         .legio-render blockquote { border-left: 3px solid ${C.accent}; padding-left: 12px; color: ${C.muted}; margin: 8px 0; font-style: italic; }
         .legio-render hr { border: none; border-top: 1px solid ${C.border}; margin: 16px 0; }
         .legio-render p { margin: 6px 0; line-height: 1.7; }
-        .legio-render code { font-family: 'Share Tech Mono', monospace; background: #2a1010; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+        .legio-render code { font-family: 'Share Tech Mono', monospace; background: #1e1f22; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
       `}</style>
     </div>
   );
