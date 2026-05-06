@@ -22,7 +22,7 @@ const C = {
   bg:       "#111214",
   surface:  "#1a1b1e",
   surface2: "#1e1f22",
-  border:   "#2e2f33",
+  border:   "rgba(100, 18, 18, 0.25)",
   accent:   "#C9A24A",
   accentDim:"#8a6e2a",
   red:      "#8B1010",
@@ -63,8 +63,10 @@ const S = {
     paddingBottom: 4, textTransform: "uppercase",
   }),
   card: {
-    background: C.surface, border: `1px solid ${C.border}`,
-    borderRadius: 6, padding: 28,
+    background: C.surface,
+    border: "1px solid rgba(100, 18, 18, 0.12)",
+    borderRadius: 8, padding: 28,
+    boxShadow: "0 0 18px rgba(90, 12, 12, 0.25), 0 4px 14px rgba(0,0,0,0.45)",
   },
   input: {
     width: "100%", background: "#16171a", border: `1px solid ${C.border}`,

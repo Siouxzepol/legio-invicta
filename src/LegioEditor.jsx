@@ -7,7 +7,7 @@ import { TextStyle } from "@tiptap/extension-text-style";
 
 const C = {
   bg:     "#111214",
-  border: "#2e2f33",
+  border: "rgba(100, 18, 18, 0.25)",
   accent: "#C9A24A",
   muted:  "#7a7a82",
   text:   "#e8e0d0",
@@ -41,7 +41,7 @@ export default function LegioEditor({ content, onChange, minHeight = 320, sticky
   if (!editor) return null;
 
   return (
-    <div style={{ border: `1px solid ${C.border}`, borderRadius: 4 }}>
+    <div style={{ border: "1px solid rgba(100, 18, 18, 0.12)", borderRadius: 6, boxShadow: "0 0 18px rgba(90, 12, 12, 0.2), 0 4px 14px rgba(0,0,0,0.4)" }}>
       {/* Toolbar sticky */}
       <div style={{
         position: "sticky", top: stickyTop, zIndex: 10,
