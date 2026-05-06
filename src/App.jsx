@@ -228,7 +228,6 @@ export default function App() {
 
   const navItems = [
     { id: "inicio",         label: "Inicio" },
-    { id: "sala_mandos",    label: "Sala de Mandos" },
     { id: "servicio",       label: "Mi Hoja" },
     { id: "especialidades", label: "Especialidades" },
     { id: "doctrina",       label: "Doctrina" },
@@ -281,8 +280,7 @@ export default function App() {
       </nav>
 
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "40px 24px" }}>
-        {view === "inicio"         && <InicioView member={member} roles={roles} operaciones={operaciones} condecoraciones={condecoraciones} orbatMiembros={orbatMiembros} />}
-        {view === "sala_mandos"    && <SalaMandosView secciones={salaMandos} />}
+        {view === "inicio"         && <InicioView member={member} roles={roles} operaciones={operaciones} condecoraciones={condecoraciones} orbatMiembros={orbatMiembros} salaMandos={salaMandos} />}
         {view === "servicio"       && <HojaServicioView member={member} roles={roles} operaciones={operaciones} orbatMiembros={orbatMiembros} orbatUnidades={orbatUnidades} especialidades={especialidades} condecoraciones={condecoraciones} />}
         {view === "operaciones"    && <OperacionesView ops={operaciones} member={member} />}
         {view === "calendario"     && <CalendarioView ops={operaciones} member={member} />}
@@ -535,7 +533,7 @@ function Collapsible({ title, badge, children, defaultOpen = false }) {
 /* ─────────────────────────────────────── */
 /*  VISTA INICIO — TABLERO DE MANDOS       */
 /* ─────────────────────────────────────── */
-function InicioView({ member, roles, operaciones, condecoraciones, orbatMiembros }) {
+function InicioView({ member, roles, operaciones, condecoraciones, orbatMiembros, salaMandos }) {
   const allMembers = useCollection("members");
   const activos    = allMembers.filter(m => m.accessStatus === "activo");
 
@@ -685,6 +683,21 @@ function InicioView({ member, roles, operaciones, condecoraciones, orbatMiembros
           </table>
         </div>
       )}
+
+      {/* Sala de Mandos — secciones informativas del clan */}
+      {salaMandos && [...salaMandos].sort((a, b) => (a.orden || 0) - (b.orden || 0)).map(sec => (
+        <div key={sec._id} style={{ marginBottom: 32 }}>
+          <div style={{ borderLeft: `4px solid ${C.accent}`, paddingLeft: 16, marginBottom: 16 }}>
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 20, color: C.accent, letterSpacing: 3, textTransform: "uppercase" }}>
+              {sec.titulo}
+            </div>
+          </div>
+          <div style={S.card}>
+            <div className="legio-render" style={{ color: C.text, lineHeight: 1.8, fontSize: 15 }}
+              dangerouslySetInnerHTML={{ __html: sec.contenido || "" }} />
+          </div>
+        </div>
+      ))}
 
     </div>
   );
@@ -1149,11 +1162,11 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
   const allMembers    = useCollection("members");
   const activeMembers = allMembers.filter(m => m.accessStatus === "activo");
 
-  const [uNombre, setUNombre] = useState("");
-  const [uColor,  setUColor]  = useState("#C9A24A");
-  const [uEmblem, setUEmblem] = useState("");
-  const [uNivel,  setUNivel]  = useState(1);
-  const [editUId, setEditUId] = useState(null);
+  const [uNombre,   setUNombre]   = useState("");
+  const [uColor,    setUColor]    = useState("#C9A24A");
+  const [uEmblem,   setUEmblem]   = useState("");
+  const [uParentId, setUParentId] = useState("");
+  const [editUId,   setEditUId]   = useState(null);
 
   const [mMemberId, setMMemberId] = useState("");
   const [mEspIds,   setMEspIds]   = useState([]);
@@ -1174,7 +1187,7 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
 
   const saveUnidad = async () => {
     if (!uNombre.trim()) return;
-    const data = { nombre: uNombre.trim(), color: uColor, emblemUrl: uEmblem.trim(), nivel: uNivel };
+    const data = { nombre: uNombre.trim(), color: uColor, emblemUrl: uEmblem.trim(), parentId: uParentId || null };
     if (editUId) {
       await fbUpd("orbat_unidades", editUId, data);
       setEditUId(null);
@@ -1182,7 +1195,7 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
       const maxOrden = unidades.reduce((m, u) => Math.max(m, u.orden || 0), 0);
       await fbAdd("orbat_unidades", { ...data, orden: maxOrden + 1 });
     }
-    setUNombre(""); setUColor("#C9A24A"); setUEmblem(""); setUNivel(1);
+    setUNombre(""); setUColor("#C9A24A"); setUEmblem(""); setUParentId("");
   };
 
   const moveUnidad = (id, dir) => {
@@ -1257,17 +1270,18 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
               </div>
             </div>
             <div style={{ marginBottom: 16 }}>
-              <label style={S.label}>Nivel en la jerarquía</label>
-              <select style={S.input} value={uNivel} onChange={e => setUNivel(Number(e.target.value))}>
-                {[1,2,3,4,5,6,7,8,9,10].map(n => (
-                  <option key={n} value={n}>Nivel {n}{n === 1 ? " — Mando superior" : n === 2 ? " — Unidades principales" : ""}</option>
+              <label style={S.label}>Unidad padre (opcional)</label>
+              <select style={S.input} value={uParentId} onChange={e => setUParentId(e.target.value)}>
+                <option value="">— Ninguna (raíz) —</option>
+                {sorted.filter(u => u._id !== editUId).map(u => (
+                  <option key={u._id} value={u._id}>{u.nombre}</option>
                 ))}
               </select>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button style={S.btn("primary")} onClick={saveUnidad}>{editUId ? "Guardar" : "Crear unidad"}</button>
               {editUId && (
-                <button style={S.btn("ghost")} onClick={() => { setEditUId(null); setUNombre(""); setUColor("#C9A24A"); setUEmblem(""); setUNivel(1); }}>
+                <button style={S.btn("ghost")} onClick={() => { setEditUId(null); setUNombre(""); setUColor("#C9A24A"); setUEmblem(""); setUParentId(""); }}>
                   Cancelar
                 </button>
               )}
@@ -1286,12 +1300,15 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
                   : <div style={{ width: 12, height: 12, borderRadius: 2, background: u.color || C.accent, flexShrink: 0 }} />
                 }
                 <span style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>{u.nombre}</span>
-                <span style={S.badge(C.accentDim)}>Nv.{u.nivel || 1}</span>
+                {u.parentId
+                  ? <span style={S.badge(C.accentDim)}>↳ {unidades.find(p => p._id === u.parentId)?.nombre || "?"}</span>
+                  : <span style={S.badge(C.accentDim)}>raíz</span>
+                }
                 {canEdit && (
                   <>
                     <button style={{ ...S.btn("ghost"), padding: "4px 8px", fontSize: 11 }} onClick={() => moveUnidad(u._id, "up")} disabled={i === 0}>▲</button>
                     <button style={{ ...S.btn("ghost"), padding: "4px 8px", fontSize: 11 }} onClick={() => moveUnidad(u._id, "down")} disabled={i === sorted.length - 1}>▼</button>
-                    <button style={{ ...S.btn("ghost"), padding: "4px 8px", fontSize: 11 }} onClick={() => { setEditUId(u._id); setUNombre(u.nombre); setUColor(u.color || "#C9A24A"); setUEmblem(u.emblemUrl || ""); setUNivel(u.nivel || 1); }}>✎</button>
+                    <button style={{ ...S.btn("ghost"), padding: "4px 8px", fontSize: 11 }} onClick={() => { setEditUId(u._id); setUNombre(u.nombre); setUColor(u.color || "#C9A24A"); setUEmblem(u.emblemUrl || ""); setUParentId(u.parentId || ""); }}>✎</button>
                     <button style={{ ...S.btn("danger"), padding: "4px 8px", fontSize: 11 }} onClick={() => delUnidad(u)}>✕</button>
                   </>
                 )}
@@ -1404,9 +1421,8 @@ function OrbatView({ unidades, miembros, roles, especialidades, condecoraciones,
   const allMembers = useCollection("members");
   const sorted = [...unidades].sort((a, b) => (a.orden || 0) - (b.orden || 0));
 
-  // Agrupar unidades por nivel (1-10), ordenadas por orden dentro de cada nivel
-  const niveles = [...new Set(sorted.map(u => u.nivel || 1))].sort((a, b) => a - b);
-  const porNivel = nivel => sorted.filter(u => (u.nivel || 1) === nivel);
+  // Árbol recursivo por parentId
+  const hijos = parentId => sorted.filter(u => (u.parentId || null) === (parentId || null));
 
   const getMemberRoles = memberId => {
     if (!memberId) return [];
@@ -1502,17 +1518,19 @@ function OrbatView({ unidades, miembros, roles, especialidades, condecoraciones,
               LEGIO INVICTA
             </div>
 
-            {/* Filas por nivel */}
-            {niveles.map(nivel => {
-              const unidadesNivel = porNivel(nivel);
+            {/* Árbol recursivo */}
+            {(function renderNivel(parentId) {
+              const nivel = hijos(parentId);
+              if (!nivel.length) return null;
               return (
-                <div key={nivel} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
                   <VLine />
                   <div className="orbat-units-row">
-                    {unidadesNivel.map(u => {
+                    {nivel.map(u => {
                       const color = u.color || C.accent;
                       const uM = [...miembros.filter(m => m.unidadId === u._id)]
                         .sort((a, b) => (a.orden || 0) - (b.orden || 0));
+                      const subHijos = hijos(u._id);
                       return (
                         <div key={u._id} className="orbat-unit-col">
                           <div style={{ width: 2, height: 20, background: color }} />
@@ -1547,13 +1565,15 @@ function OrbatView({ unidades, miembros, roles, especialidades, condecoraciones,
                               <OrbatCard m={m} color={color} />
                             </div>
                           ))}
+                          {/* Sub-unidades hijas */}
+                          {subHijos.length > 0 && renderNivel(u._id)}
                         </div>
                       );
                     })}
                   </div>
                 </div>
               );
-            })}
+            })(null)}
           </div>
         </div>
       )}
