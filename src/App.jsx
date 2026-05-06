@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import LegioEditor from "./LegioEditor";
 import {
   collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
-  onSnapshot, query, orderBy, serverTimestamp,
+  onSnapshot, query, orderBy, serverTimestamp, deleteField,
 } from "firebase/firestore";
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
@@ -111,6 +111,15 @@ const S = {
   },
 };
 
+/* ── Tipos y estados de operaciones ── */
+const OP_TIPOS = ["COIN", "Asalto", "Reconocimiento", "Defensa", "Evacuación", "QRF", "CASEVAC", "Entrenamiento", "Otra"];
+const OP_ESTADOS = {
+  planificada: { label: "Planificada", color: "#8a6e2a" },
+  en_curso:    { label: "En curso",    color: "#4caf50" },
+  completada:  { label: "Completada",  color: "#7a7a82" },
+  cancelada:   { label: "Cancelada",   color: "#c0392b" },
+};
+
 /* ── Permisos disponibles ── */
 const ALL_PERMS = [
   { id: "manage_members",   label: "Gestionar legionarios" },
@@ -156,6 +165,10 @@ export default function App() {
   const orbatMiembros   = useCollection("orbat_miembros");
   const doctrina        = useCollection("doctrina", orderBy("createdAt", "desc"));
   const especialidades  = useCollection("especialidades", orderBy("nombre"));
+  const operaciones     = useCollection("operaciones", orderBy("fecha", "desc"));
+  const condecoraciones = useCollection("condecoraciones", orderBy("createdAt", "desc"));
+  const salaFama        = useCollection("sala_fama", orderBy("orden"));
+  const salaMandos      = useCollection("sala_mandos", orderBy("orden"));
 
   /* Auth listener */
   useEffect(() => {
@@ -214,14 +227,18 @@ export default function App() {
   if (member.accessStatus === "expulsado") return <ExpelledScreen member={member} />;
 
   const navItems = [
-    { id: "inicio",          label: "Inicio" },
-    { id: "orbat",           label: "ORBAT" },
-    { id: "especialidades",  label: "Especialidades" },
-    { id: "doctrina",        label: "Doctrina" },
-    ...(isJefe || canDo("approve_requests") || canDo("manage_roles") || canDo("manage_members") || canDo("manage_orbat") || canDo("manage_doctrina")
+    { id: "inicio",         label: "Inicio" },
+    { id: "sala_mandos",    label: "Sala de Mandos" },
+    { id: "servicio",       label: "Mi Hoja" },
+    { id: "especialidades", label: "Especialidades" },
+    { id: "doctrina",       label: "Doctrina" },
+    ...(isJefe || canDo("approve_requests") || canDo("manage_roles") || canDo("manage_members") || canDo("manage_orbat") || canDo("manage_doctrina") || canDo("manage_ops")
       ? [{ id: "admin", label: "Mando" }]
       : []),
   ];
+
+  const orbatActive = view === "orbat" || view === "sala_fama";
+  const opsActive   = view === "operaciones" || view === "calendario";
 
   return (
     <div style={S.page}>
@@ -238,18 +255,91 @@ export default function App() {
             {n.label}
           </span>
         ))}
+        <NavDropdown
+          label="Operaciones"
+          active={opsActive}
+          items={[
+            { id: "operaciones", label: "Operaciones" },
+            { id: "calendario",  label: "Calendario" },
+          ]}
+          currentView={view}
+          onSelect={setView}
+        />
+        <NavDropdown
+          label="ORBAT"
+          active={orbatActive}
+          items={[
+            { id: "orbat",     label: "ORBAT" },
+            { id: "sala_fama", label: "Sala de la Fama" },
+          ]}
+          currentView={view}
+          onSelect={setView}
+        />
         <span style={{ ...S.navItem(false), marginLeft: 8 }} onClick={() => signOut(auth)}>
           Salir
         </span>
       </nav>
 
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "40px 24px" }}>
-        {view === "inicio"         && <InicioView member={member} roles={roles} />}
-        {view === "orbat"          && <OrbatView unidades={orbatUnidades} miembros={orbatMiembros} roles={roles} especialidades={especialidades} />}
+        {view === "inicio"         && <InicioView member={member} roles={roles} operaciones={operaciones} condecoraciones={condecoraciones} orbatMiembros={orbatMiembros} />}
+        {view === "sala_mandos"    && <SalaMandosView secciones={salaMandos} />}
+        {view === "servicio"       && <HojaServicioView member={member} roles={roles} operaciones={operaciones} orbatMiembros={orbatMiembros} orbatUnidades={orbatUnidades} especialidades={especialidades} condecoraciones={condecoraciones} />}
+        {view === "operaciones"    && <OperacionesView ops={operaciones} member={member} />}
+        {view === "calendario"     && <CalendarioView ops={operaciones} member={member} />}
+        {view === "orbat"          && <OrbatView unidades={orbatUnidades} miembros={orbatMiembros} roles={roles} especialidades={especialidades} condecoraciones={condecoraciones} salaFama={salaFama} />}
+        {view === "sala_fama"      && <SalaFamaView salaFama={salaFama} condecoraciones={condecoraciones} />}
         {view === "especialidades" && <EspecialidadesView especialidades={especialidades} />}
         {view === "doctrina"       && <DoctrinaView docs={doctrina} member={member} isJefe={isJefe} canDo={canDo} />}
-        {view === "admin"          && <AdminPanel roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} canDo={canDo} orbatUnidades={orbatUnidades} orbatMiembros={orbatMiembros} doctrina={doctrina} member={member} especialidades={especialidades} />}
+        {view === "admin"          && <AdminPanel roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} canDo={canDo} orbatUnidades={orbatUnidades} orbatMiembros={orbatMiembros} doctrina={doctrina} member={member} especialidades={especialidades} operaciones={operaciones} condecoraciones={condecoraciones} salaFama={salaFama} salaMandos={salaMandos} />}
       </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────── */
+/*  NAV DROPDOWN                           */
+/* ─────────────────────────────────────── */
+function NavDropdown({ label, active, items, currentView, onSelect }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      style={{ position: "relative" }}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <span style={{ ...S.navItem(active), display: "flex", alignItems: "center", gap: 5, userSelect: "none", cursor: "pointer" }}>
+        {label}
+        <span style={{ fontSize: 9, color: active ? C.accent : C.muted, transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s", display: "inline-block" }}>▼</span>
+      </span>
+      {open && (
+        <div style={{
+          position: "absolute", top: "100%", left: 0, zIndex: 200,
+          background: "rgba(22,23,26,0.98)", border: `1px solid ${C.border}`,
+          borderRadius: "0 0 6px 6px", minWidth: 180,
+          boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
+          paddingTop: 4, paddingBottom: 4,
+        }}>
+          {items.map(item => (
+            <div
+              key={item.id}
+              onClick={() => { onSelect(item.id); setOpen(false); }}
+              style={{
+                padding: "10px 18px",
+                fontFamily: "'Oswald', sans-serif", fontSize: 14, letterSpacing: 2,
+                textTransform: "uppercase", cursor: "pointer",
+                color: currentView === item.id ? C.accent : C.muted,
+                borderLeft: currentView === item.id ? `3px solid ${C.accent}` : "3px solid transparent",
+                background: currentView === item.id ? "rgba(201,162,74,0.06)" : "transparent",
+                transition: "background 0.1s",
+              }}
+              onMouseEnter={e => { if (currentView !== item.id) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
+              onMouseLeave={e => { if (currentView !== item.id) e.currentTarget.style.background = "transparent"; }}
+            >
+              {item.label}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -421,31 +511,181 @@ function StatusScreen({ color, icon, title, lines }) {
 }
 
 /* ─────────────────────────────────────── */
-/*  VISTA INICIO                           */
+/*  COLLAPSIBLE GENÉRICO                   */
 /* ─────────────────────────────────────── */
-function InicioView({ member, roles }) {
-  const roleNames = roles
-    .filter(r => getMemberRoleIds(member).includes(r._id))
-    .map(r => r.name).join(" · ");
+function Collapsible({ title, badge, children, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ marginTop: 24 }}>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "14px 0", borderTop: `1px solid ${C.border}`, userSelect: "none" }}
+      >
+        <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 16, color: C.accent, letterSpacing: 3, textTransform: "uppercase", flex: 1 }}>
+          {title}
+        </span>
+        {badge != null && <span style={{ ...S.badge(C.accentDim) }}>{badge}</span>}
+        <span style={{ color: C.muted, fontSize: 12, display: "inline-block", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>▼</span>
+      </div>
+      {open && <div style={{ paddingBottom: 8 }}>{children}</div>}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────── */
+/*  VISTA INICIO — TABLERO DE MANDOS       */
+/* ─────────────────────────────────────── */
+function InicioView({ member, roles, operaciones, condecoraciones, orbatMiembros }) {
+  const allMembers = useCollection("members");
+  const activos    = allMembers.filter(m => m.accessStatus === "activo");
+
+  /* Stats */
+  const opsCompletadas = operaciones.filter(o => o.estado === "completada");
+  const opsActivas     = operaciones.filter(o => o.estado === "en_curso" || o.estado === "planificada");
+  const opsPlanif      = operaciones.filter(o => o.estado === "planificada");
+
+  const avgAsistencia = (() => {
+    const base = opsCompletadas.filter(op => Object.keys(op.asistencia || {}).length > 0);
+    if (!base.length) return null;
+    const total = base.reduce((sum, op) => {
+      const vals = Object.values(op.asistencia);
+      const conf = vals.filter(v => v === "confirmada").length;
+      return sum + (vals.length ? conf / vals.length * 100 : 0);
+    }, 0);
+    return Math.round(total / base.length);
+  })();
+
+  const roleNames = roles.filter(r => getMemberRoleIds(member).includes(r._id)).map(r => r.name).join(" · ");
+
+  const statCards = [
+    { label: "Legionarios activos",   value: activos.length,          color: C.accent },
+    { label: "Ops completadas",        value: opsCompletadas.length,   color: C.green },
+    { label: "En cartera",             value: opsActivas.length,       color: C.accentDim },
+    { label: "Asistencia media",       value: avgAsistencia !== null ? `${avgAsistencia}%` : "—", color: avgAsistencia >= 70 ? C.green : avgAsistencia >= 40 ? C.accentDim : C.danger },
+  ];
+
+  const proximas     = [...opsPlanif].sort((a, b) => a.fecha > b.fecha ? 1 : -1).slice(0, 5);
+  const ultimasDecos = condecoraciones.slice(0, 5);
 
   return (
     <div>
-      <h2 style={S.h2}>Panel de Mando</h2>
-      <div style={{ ...S.card, maxWidth: 480, borderLeft: `4px solid ${C.accent}` }}>
-        <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 18, marginBottom: 4 }}>
-          {member.displayName || member.handle}
-          {member.isJefe && !member.isSuperAdmin && !getMemberRoleIds(member).length && (
-            <span style={{ marginLeft: 8, color: C.accentDim }}>⚜</span>
-          )}
-        </div>
-        {roleNames && <div style={S.badge(C.accent)}>{roleNames}</div>}
-        <div style={{ color: C.muted, fontSize: 12, marginTop: 8, fontFamily: "'Share Tech Mono', monospace" }}>
-          @{member.handle}
+      {/* Bienvenida */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28, flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h2 style={{ ...S.h2, margin: 0 }}>Tablero de Mandos</h2>
+          <div style={{ color: C.muted, fontSize: 13, marginTop: 4, fontFamily: "'Share Tech Mono', monospace" }}>
+            Bienvenido, @{member.handle}{roleNames ? ` · ${roleNames}` : ""}
+          </div>
         </div>
       </div>
-      <div style={{ marginTop: 32, color: C.muted, fontSize: 13 }}>
-        Más secciones próximamente: SITREP, Operaciones, ORBAT…
+
+      {/* Stats */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 28 }}>
+        {statCards.map(s => (
+          <div key={s.label} style={{ ...S.card, textAlign: "center", padding: "20px 16px" }}>
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 38, color: s.color, lineHeight: 1, marginBottom: 8 }}>{s.value}</div>
+            <div style={{ color: C.muted, fontSize: 11, letterSpacing: 1, fontFamily: "'Oswald', sans-serif", textTransform: "uppercase" }}>{s.label}</div>
+          </div>
+        ))}
       </div>
+
+      {/* Dos columnas */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>
+
+        {/* Próximas operaciones */}
+        <div style={S.card}>
+          <h3 style={{ ...S.h3, marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            Próximas operaciones
+            <span style={S.badge(C.accentDim)}>{opsPlanif.length}</span>
+          </h3>
+          {proximas.length === 0 ? (
+            <p style={{ color: C.muted, fontSize: 13 }}>Sin operaciones planificadas.</p>
+          ) : proximas.map(op => {
+            const est = OP_ESTADOS[op.estado] || OP_ESTADOS.planificada;
+            const myVal = op.asistencia?.[member._id] || null;
+            return (
+              <div key={op._id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${C.border}20` }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13 }}>{op.nombre}</div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 3, alignItems: "center", flexWrap: "wrap" }}>
+                    <span style={S.badge(est.color)}>{est.label}</span>
+                    <span style={S.badge(C.accentDim)}>{op.tipo}</span>
+                    {op.fecha && (
+                      <span style={{ color: C.muted, fontSize: 11 }}>
+                        {new Date(op.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {myVal && (
+                  <span style={S.badge(myVal === "confirmada" ? C.green : C.danger)}>
+                    {myVal === "confirmada" ? "✓" : "✗"}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Últimas condecoraciones */}
+        <div style={S.card}>
+          <h3 style={{ ...S.h3, marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            Condecoraciones recientes
+            <span style={S.badge(C.accentDim)}>{condecoraciones.length}</span>
+          </h3>
+          {ultimasDecos.length === 0 ? (
+            <p style={{ color: C.muted, fontSize: 13 }}>Sin condecoraciones registradas.</p>
+          ) : ultimasDecos.map(d => (
+            <div key={d._id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${C.border}20` }}>
+              <span style={{ fontSize: 18, flexShrink: 0 }}>🎖</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.accent }}>{d.nombre}</div>
+                <div style={{ color: C.muted, fontSize: 12, marginTop: 2 }}>
+                  @{d.memberHandle}
+                  {d.fecha && ` · ${new Date(d.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}`}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Operaciones recientes completadas */}
+      {opsCompletadas.length > 0 && (
+        <div style={S.card}>
+          <h3 style={{ ...S.h3, marginBottom: 16 }}>Operaciones completadas</h3>
+          <table style={S.table}>
+            <thead>
+              <tr>
+                <th style={S.th}>Operación</th>
+                <th style={S.th}>Tipo</th>
+                <th style={S.th}>Fecha</th>
+                <th style={S.th}>Confirmados</th>
+                <th style={S.th}>Bajas</th>
+              </tr>
+            </thead>
+            <tbody>
+              {opsCompletadas.slice(0, 8).map(op => {
+                const vals  = Object.values(op.asistencia || {});
+                const conf  = vals.filter(v => v === "confirmada").length;
+                const bajas = vals.filter(v => v === "baja").length;
+                return (
+                  <tr key={op._id}>
+                    <td style={{ ...S.td, fontFamily: "'Oswald', sans-serif" }}>{op.nombre}</td>
+                    <td style={S.td}><span style={S.badge(C.accentDim)}>{op.tipo}</span></td>
+                    <td style={{ ...S.td, fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: C.muted }}>
+                      {op.fecha ? new Date(op.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
+                    </td>
+                    <td style={{ ...S.td, color: C.green, fontFamily: "'Oswald', sans-serif" }}>{conf}</td>
+                    <td style={{ ...S.td, color: conf + bajas > 0 ? C.danger : C.muted, fontFamily: "'Oswald', sans-serif" }}>{bajas}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -507,7 +747,7 @@ function MiembrosView({ roles, canDo, isJefe }) {
 /* ─────────────────────────────────────── */
 /*  PANEL ADMIN (MANDO)                    */
 /* ─────────────────────────────────────── */
-function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMiembros, doctrina, member, especialidades }) {
+function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMiembros, doctrina, member, especialidades, operaciones, condecoraciones, salaFama, salaMandos }) {
   const [tab, setTab] = useState("solicitudes");
 
   const tabs = [
@@ -515,8 +755,12 @@ function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMi
     { id: "rangos",         label: "Rangos",          show: isJefe || canDo("manage_roles") },
     { id: "especialidades", label: "Especialidades",  show: isJefe || canDo("manage_roles") },
     { id: "bajas",          label: "Bajas",           show: isJefe || canDo("manage_members") },
-    { id: "orbat",          label: "ORBAT",           show: isJefe || canDo("manage_orbat") },
-    { id: "doctrina",       label: "Doctrina",        show: isJefe || canDo("manage_doctrina") },
+    { id: "orbat",             label: "ORBAT",            show: isJefe || canDo("manage_orbat") },
+    { id: "operaciones",       label: "Operaciones",      show: isJefe || canDo("manage_ops") },
+    { id: "condecoraciones",   label: "Condecoraciones",  show: isJefe || canDo("manage_members") },
+    { id: "sala_fama",         label: "Sala de la Fama",  show: isJefe || canDo("manage_members") },
+    { id: "sala_mandos",       label: "Sala de Mandos",   show: isJefe || canDo("manage_doctrina") },
+    { id: "doctrina",          label: "Doctrina",         show: isJefe || canDo("manage_doctrina") },
   ].filter(t => t.show);
 
   return (
@@ -541,7 +785,11 @@ function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMi
       {tab === "especialidades" && <TabEspecialidades especialidades={especialidades} isJefe={isJefe} canDo={canDo} />}
       {tab === "bajas"          && <TabBajas />}
       {tab === "orbat"          && <TabOrbat unidades={orbatUnidades} miembros={orbatMiembros} isJefe={isJefe} canDo={canDo} roles={roles} especialidades={especialidades} />}
-      {tab === "doctrina"       && <TabDoctrina docs={doctrina} member={member} isJefe={isJefe} canDo={canDo} />}
+      {tab === "operaciones"     && <TabOperaciones ops={operaciones} member={member} isJefe={isJefe} canDo={canDo} />}
+      {tab === "condecoraciones" && <TabCondecoraciones condecoraciones={condecoraciones} member={member} isJefe={isJefe} canDo={canDo} />}
+      {tab === "sala_fama"       && <TabSalaFama salaFama={salaFama} condecoraciones={condecoraciones} isJefe={isJefe} canDo={canDo} />}
+      {tab === "sala_mandos"     && <TabSalaMandos secciones={salaMandos} member={member} isJefe={isJefe} canDo={canDo} />}
+      {tab === "doctrina"        && <TabDoctrina docs={doctrina} member={member} isJefe={isJefe} canDo={canDo} />}
     </div>
   );
 }
@@ -583,9 +831,10 @@ function TabSolicitudes({ roles }) {
 
 /* ── Tab: Rangos ── */
 function TabRangos({ roles, isJefe, isSuperAdmin }) {
-  const [name, setName]   = useState("");
-  const [perms, setPerms] = useState([]);
-  const [editId, setEditId] = useState(null);
+  const [name,       setName]      = useState("");
+  const [insigniaUrl,setInsignia]  = useState("");
+  const [perms,      setPerms]     = useState([]);
+  const [editId,     setEditId]    = useState(null);
 
   const canEdit = isJefe || isSuperAdmin;
 
@@ -593,17 +842,18 @@ function TabRangos({ roles, isJefe, isSuperAdmin }) {
 
   const save = async () => {
     if (!name.trim()) return;
+    const data = { name: name.trim(), insigniaUrl: insigniaUrl.trim(), permissions: perms };
     if (editId) {
-      await fbUpd("roles", editId, { name: name.trim(), permissions: perms });
+      await fbUpd("roles", editId, data);
       setEditId(null);
     } else {
-      await fbAdd("roles", { name: name.trim(), permissions: perms });
+      await fbAdd("roles", data);
     }
-    setName(""); setPerms([]);
+    setName(""); setInsignia(""); setPerms([]);
   };
 
   const startEdit = r => {
-    setEditId(r._id); setName(r.name); setPerms(r.permissions || []);
+    setEditId(r._id); setName(r.name); setInsignia(r.insigniaUrl || ""); setPerms(r.permissions || []);
   };
 
   const del = async r => {
@@ -617,19 +867,29 @@ function TabRangos({ roles, isJefe, isSuperAdmin }) {
         <div style={{ ...S.card, marginBottom: 24 }}>
           <h3 style={S.h3}>{editId ? "Editar rango" : "Nuevo rango"}</h3>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-            {/* Izquierda: nombre + botones */}
+            {/* Izquierda: nombre + insignia + botones */}
             <div>
-              <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: 12 }}>
                 <label style={S.label}>Nombre del rango</label>
-                <input style={S.input} value={name}
-                  onChange={e => setName(e.target.value)} placeholder="Ej: Centurión" />
+                <input style={S.input} value={name} onChange={e => setName(e.target.value)} placeholder="Ej: Soldado" />
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={S.label}>Ruta de la insignia (PNG)</label>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input style={{ ...S.input, flex: 1 }} value={insigniaUrl} onChange={e => setInsignia(e.target.value)}
+                    placeholder="/imagenes de pruebas/soldado.png" />
+                  {insigniaUrl && (
+                    <img src={insigniaUrl} alt="preview"
+                      style={{ width: 36, height: 44, objectFit: "contain", flexShrink: 0, background: "rgba(255,255,255,0.04)", borderRadius: 3 }} />
+                  )}
+                </div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button style={S.btn("primary")} onClick={save}>{editId ? "Guardar" : "Crear rango"}</button>
-                {editId && <button style={S.btn("ghost")} onClick={() => { setEditId(null); setName(""); setPerms([]); }}>Cancelar</button>}
+                {editId && <button style={S.btn("ghost")} onClick={() => { setEditId(null); setName(""); setInsignia(""); setPerms([]); }}>Cancelar</button>}
               </div>
             </div>
-            {/* Derecha: permisos en lista vertical */}
+            {/* Derecha: permisos */}
             <div>
               <label style={S.label}>Permisos</label>
               <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
@@ -651,10 +911,11 @@ function TabRangos({ roles, isJefe, isSuperAdmin }) {
         {roles.length === 0
           ? <p style={{ color: C.muted }}>Sin rangos creados.</p>
           : roles.map(r => (
-            <div key={r._id} style={{
-              display: "flex", alignItems: "center", gap: 12,
-              padding: "10px 0", borderBottom: `1px solid ${C.border}20`,
-            }}>
+            <div key={r._id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: `1px solid ${C.border}20` }}>
+              {r.insigniaUrl
+                ? <img src={r.insigniaUrl} alt={r.name} style={{ width: 28, height: 36, objectFit: "contain", flexShrink: 0 }} />
+                : <div style={{ width: 28, flexShrink: 0 }} />
+              }
               <div style={{ flex: 1 }}>
                 <span style={{ fontWeight: 600 }}>{r.name}</span>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
@@ -1048,16 +1309,19 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
 /* ─────────────────────────────────────── */
 /*  VISTA PÚBLICA ORBAT                    */
 /* ─────────────────────────────────────── */
-function OrbatView({ unidades, miembros, roles, especialidades }) {
+function OrbatView({ unidades, miembros, roles, especialidades, condecoraciones, salaFama }) {
   const allMembers = useCollection("members");
   const sorted = [...unidades].sort((a, b) => (a.orden || 0) - (b.orden || 0));
 
-  const getMemberRoles = (memberId) => {
+  const getMemberRoles = memberId => {
     if (!memberId) return [];
     const mem = allMembers.find(m => m._id === memberId);
     if (!mem) return [];
     return roles.filter(r => getMemberRoleIds(mem).includes(r._id));
   };
+
+  const getMemberDecos = memberId =>
+    (condecoraciones || []).filter(d => d.memberId === memberId && d.imagenUrl);
 
   return (
     <div>
@@ -1065,7 +1329,7 @@ function OrbatView({ unidades, miembros, roles, especialidades }) {
       {sorted.length === 0 ? (
         <p style={{ color: C.muted }}>ORBAT no configurado. Accede al Panel de Mando para configurarlo.</p>
       ) : sorted.map(u => {
-        const uM = miembros.filter(m => m.unidadId === u._id);
+        const uM    = miembros.filter(m => m.unidadId === u._id);
         const color = u.color || C.accent;
         return (
           <div key={u._id} style={{ marginBottom: 32 }}>
@@ -1078,25 +1342,111 @@ function OrbatView({ unidades, miembros, roles, especialidades }) {
             {uM.length === 0 ? (
               <p style={{ color: C.muted, paddingLeft: 20, fontSize: 13 }}>Sin efectivos asignados.</p>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12, paddingLeft: 20 }}>
-                {uM.map(m => (
-                  <div key={m._id} style={{ ...S.card, borderLeft: `2px solid ${color}55` }}>
-                    <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, marginBottom: 4 }}>{m.nombre}</div>
-                    {m.handle && (
-                      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: C.accent, marginBottom: 6 }}>
-                        @{m.handle}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12, paddingLeft: 20 }}>
+                {uM.map(m => {
+                  const memberRoles = getMemberRoles(m.memberId);
+                  const decos       = getMemberDecos(m.memberId);
+                  /* Rango principal: primer rol con insigniaUrl, o el primero */
+                  const rangoP  = memberRoles.find(r => r.insigniaUrl) || memberRoles[0] || null;
+                  const extrasR = memberRoles.filter(r => r._id !== rangoP?._id);
+                  return (
+                    <div key={m._id} style={{ ...S.card, borderLeft: `2px solid ${color}55`, display: "flex", gap: 10, alignItems: "flex-start" }}>
+
+                      {/* Izquierda — insignia de rango */}
+                      <div style={{ width: 36, flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 2 }}>
+                        {rangoP?.insigniaUrl && (
+                          <img src={rangoP.insigniaUrl} alt={rangoP.name} title={rangoP.name}
+                            style={{ width: 32, height: 40, objectFit: "contain" }} />
+                        )}
                       </div>
-                    )}
-                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                      {(m.espIds || []).map(id => {
-                        const esp = especialidades.find(e => e._id === id);
-                        return esp ? <span key={id} style={S.badge(esp.color || C.accentDim)}>{esp.nombre}</span> : null;
-                      })}
-                      {getMemberRoles(m.memberId).map(r => (
-                        <span key={r._id} style={S.badge(C.accent)}>{r.name}</span>
-                      ))}
+
+                      {/* Centro — rango + nombre + handle + especialidades */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        {rangoP && (
+                          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 10, color: C.accentDim, letterSpacing: 2, textTransform: "uppercase", marginBottom: 1 }}>
+                            {rangoP.name}
+                          </div>
+                        )}
+                        <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, marginBottom: 2 }}>{m.nombre}</div>
+                        {m.handle && (
+                          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: C.accent, marginBottom: 6 }}>
+                            @{m.handle}
+                          </div>
+                        )}
+                        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                          {extrasR.map(r => (
+                            <span key={r._id} style={S.badge(C.accent)}>{r.name}</span>
+                          ))}
+                          {(m.espIds || []).map(id => {
+                            const esp = especialidades.find(e => e._id === id);
+                            return esp ? <span key={id} style={S.badge(esp.color || C.accentDim)}>{esp.nombre}</span> : null;
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Derecha — condecoraciones */}
+                      {decos.length > 0 && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "center", flexShrink: 0 }}>
+                          {decos.map(d => (
+                            <img key={d._id} src={d.imagenUrl} alt={d.nombre} title={d.nombre}
+                              style={{ width: 28, height: 28, objectFit: "contain" }} />
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {/* Sala de la Fama — desplegable al final del ORBAT */}
+      {salaFama?.length > 0 && (
+        <Collapsible title="Sala de la Fama" badge={salaFama.length}>
+          <SalaFamaGrid salaFama={salaFama} condecoraciones={condecoraciones} />
+        </Collapsible>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────── */
+/*  VISTA NAV SALA DE LA FAMA              */
+/* ─────────────────────────────────────── */
+function SalaFamaView({ salaFama, condecoraciones }) {
+  return (
+    <div>
+      <h2 style={S.h2}>Sala de la Fama</h2>
+      {salaFama.length === 0 ? (
+        <p style={{ color: C.muted }}>La Sala de la Fama está vacía. Configúrala desde el Panel de Mando.</p>
+      ) : (
+        <SalaFamaGrid salaFama={salaFama} condecoraciones={condecoraciones} />
+      )}
+    </div>
+  );
+}
+
+function SalaFamaGrid({ salaFama, condecoraciones }) {
+  const sorted = [...salaFama].sort((a, b) => (a.orden || 0) - (b.orden || 0));
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
+      {sorted.map(entry => {
+        const decos = condecoraciones.filter(d => (entry.decoIds || []).includes(d._id));
+        return (
+          <div key={entry._id} style={{ ...S.card, borderTop: `3px solid ${C.accent}`, textAlign: "center", padding: 24 }}>
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 20, color: C.accent, letterSpacing: 3, marginBottom: 4 }}>
+              {entry.memberHandle}
+            </div>
+            {entry.descripcion && (
+              <div style={{ color: C.muted, fontSize: 12, marginBottom: 16, lineHeight: 1.6 }}>{entry.descripcion}</div>
+            )}
+            {decos.length > 0 && (
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+                {decos.map(d => (
+                  d.imagenUrl
+                    ? <img key={d._id} src={d.imagenUrl} alt={d.nombre} title={d.nombre} style={{ width: 52, height: 52, objectFit: "contain" }} />
+                    : <span key={d._id} title={d.nombre} style={{ fontSize: 32 }}>🎖</span>
                 ))}
               </div>
             )}
@@ -1352,6 +1702,961 @@ function TabEspecialidades({ especialidades, isJefe, canDo }) {
           ))
         }
       </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────── */
+/*  VISTA PÚBLICA HOJA DE SERVICIO         */
+/* ─────────────────────────────────────── */
+function HojaServicioView({ member, roles, operaciones, orbatMiembros, orbatUnidades, especialidades, condecoraciones }) {
+  const orbatEntry  = orbatMiembros.find(m => m.memberId === member._id);
+  const unidad      = orbatEntry ? orbatUnidades.find(u => u._id === orbatEntry.unidadId) : null;
+  const memberRoles = roles.filter(r => getMemberRoleIds(member).includes(r._id));
+  const memberEsps  = orbatEntry ? especialidades.filter(e => (orbatEntry.espIds || []).includes(e._id)) : [];
+
+  const opsHistory     = operaciones.filter(op => op.asistencia?.[member._id]);
+  const opsConfirmadas = opsHistory.filter(op => op.asistencia[member._id] === "confirmada");
+  const myDecos        = condecoraciones.filter(d => d.memberId === member._id);
+
+  return (
+    <div>
+      <h2 style={S.h2}>Hoja de Servicio</h2>
+
+      {/* Cabecera */}
+      <div style={{ ...S.card, marginBottom: 24, borderLeft: `4px solid ${C.accent}` }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 20, flexWrap: "wrap" }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 22, marginBottom: 4 }}>
+              {member.displayName || member.handle}
+            </div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: C.accent, marginBottom: 10 }}>
+              @{member.handle}
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+              {memberRoles.map(r => <span key={r._id} style={S.badge(C.accent)}>{r.name}</span>)}
+              {!memberRoles.length && <span style={{ color: C.muted, fontSize: 12 }}>Sin rango asignado</span>}
+            </div>
+            {memberEsps.length > 0 && (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {memberEsps.map(e => <span key={e._id} style={S.badge(e.color || C.accentDim)}>{e.nombre}</span>)}
+              </div>
+            )}
+          </div>
+          {unidad && (
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 11, color: C.muted, letterSpacing: 2, fontFamily: "'Oswald', sans-serif", marginBottom: 4 }}>UNIDAD</div>
+              <div style={{ color: unidad.color || C.accent, fontFamily: "'Oswald', sans-serif", fontSize: 14, letterSpacing: 2 }}>{unidad.nombre}</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24 }}>
+        {[
+          { label: "Ops. confirmadas", value: opsConfirmadas.length, color: C.green },
+          { label: "Total en registro", value: opsHistory.length,    color: C.accent },
+          { label: "Condecoraciones",   value: myDecos.length,       color: C.accentDim },
+        ].map(s => (
+          <div key={s.label} style={{ ...S.card, textAlign: "center" }}>
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 36, color: s.color, lineHeight: 1 }}>{s.value}</div>
+            <div style={{ color: C.muted, fontSize: 11, letterSpacing: 1, marginTop: 8, fontFamily: "'Oswald', sans-serif", textTransform: "uppercase" }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Historial + Condecoraciones */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+        <div style={S.card}>
+          <h3 style={S.h3}>Historial de operaciones</h3>
+          {opsHistory.length === 0 ? (
+            <p style={{ color: C.muted, fontSize: 13 }}>Sin operaciones registradas.</p>
+          ) : opsHistory.map(op => {
+            const asVal = op.asistencia[member._id];
+            return (
+              <div key={op._id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: `1px solid ${C.border}20` }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13 }}>{op.nombre}</div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 3, flexWrap: "wrap", alignItems: "center" }}>
+                    <span style={S.badge(C.accentDim)}>{op.tipo}</span>
+                    {op.fecha && (
+                      <span style={{ color: C.muted, fontSize: 11 }}>
+                        {new Date(op.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <span style={S.badge(asVal === "confirmada" ? C.green : C.danger)}>
+                  {asVal === "confirmada" ? "Asistió" : "Baja"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={S.card}>
+          <h3 style={S.h3}>Condecoraciones</h3>
+          {myDecos.length === 0 ? (
+            <p style={{ color: C.muted, fontSize: 13 }}>Sin condecoraciones.</p>
+          ) : myDecos.map(d => (
+            <div key={d._id} style={{ padding: "10px 0", borderBottom: `1px solid ${C.border}20` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                <span style={{ fontSize: 18 }}>🎖</span>
+                <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, color: C.accent }}>{d.nombre}</span>
+              </div>
+              {d.descripcion && <div style={{ color: C.muted, fontSize: 12, paddingLeft: 26 }}>{d.descripcion}</div>}
+              <div style={{ display: "flex", gap: 10, paddingLeft: 26, marginTop: 4 }}>
+                {d.fecha && (
+                  <span style={{ color: C.muted, fontSize: 11 }}>
+                    {new Date(d.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}
+                  </span>
+                )}
+                {d.otorgadoPor && <span style={{ color: C.muted, fontSize: 11 }}>por @{d.otorgadoPor}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────── */
+/*  VISTA PÚBLICA SALA DE MANDOS           */
+/* ─────────────────────────────────────── */
+function SalaMandosView({ secciones }) {
+  const sorted = [...secciones].sort((a, b) => (a.orden || 0) - (b.orden || 0));
+  return (
+    <div>
+      <h2 style={S.h2}>Sala de Mandos</h2>
+      {sorted.length === 0 ? (
+        <p style={{ color: C.muted }}>Contenido pendiente de configuración.</p>
+      ) : sorted.map(sec => (
+        <div key={sec._id} style={{ marginBottom: 40 }}>
+          <div style={{ borderLeft: `4px solid ${C.accent}`, paddingLeft: 16, marginBottom: 20 }}>
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 22, color: C.accent, letterSpacing: 3, textTransform: "uppercase" }}>
+              {sec.titulo}
+            </div>
+          </div>
+          <div style={S.card}>
+            <div
+              className="legio-render"
+              style={{ color: C.text, lineHeight: 1.8, fontSize: 15 }}
+              dangerouslySetInnerHTML={{ __html: sec.contenido || "" }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────── */
+/*  TAB SALA DE MANDOS (ADMIN)             */
+/* ─────────────────────────────────────── */
+function TabSalaMandos({ secciones, member, isJefe, canDo }) {
+  const canEdit = isJefe || canDo("manage_doctrina");
+  const sorted  = [...secciones].sort((a, b) => (a.orden || 0) - (b.orden || 0));
+
+  const [editId,    setEditId]    = useState(null);
+  const [titulo,    setTitulo]    = useState("");
+  const [contenido, setContenido] = useState("");
+
+  const resetForm = () => { setEditId(null); setTitulo(""); setContenido(""); };
+
+  const startEdit = sec => { setEditId(sec._id); setTitulo(sec.titulo); setContenido(sec.contenido || ""); };
+
+  const save = async () => {
+    if (!titulo.trim()) return;
+    if (editId) {
+      await fbUpd("sala_mandos", editId, { titulo: titulo.trim(), contenido, autor: member.handle });
+    } else {
+      const maxOrden = secciones.reduce((mx, s) => Math.max(mx, s.orden || 0), 0);
+      await fbAdd("sala_mandos", { titulo: titulo.trim(), contenido, autor: member.handle, orden: maxOrden + 1 });
+    }
+    resetForm();
+  };
+
+  const del = async sec => {
+    if (!confirm(`¿Eliminar la sección "${sec.titulo}"?`)) return;
+    await fbDel("sala_mandos", sec._id);
+  };
+
+  const move = (id, dir) => {
+    const i = sorted.findIndex(s => s._id === id);
+    if (dir === "up" && i > 0) {
+      fbSet("sala_mandos", sorted[i]._id,     { orden: sorted[i - 1].orden });
+      fbSet("sala_mandos", sorted[i - 1]._id, { orden: sorted[i].orden });
+    }
+    if (dir === "down" && i < sorted.length - 1) {
+      fbSet("sala_mandos", sorted[i]._id,     { orden: sorted[i + 1].orden });
+      fbSet("sala_mandos", sorted[i + 1]._id, { orden: sorted[i].orden });
+    }
+  };
+
+  if (editId !== null) {
+    return (
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <button style={S.btn("ghost")} onClick={resetForm}>← Volver</button>
+          <h2 style={{ ...S.h2, margin: 0 }}>{editId === "new" ? "Nueva sección" : "Editar sección"}</h2>
+        </div>
+        <div style={{ ...S.card, marginBottom: 16 }}>
+          <div style={{ marginBottom: 16 }}>
+            <label style={S.label}>Título de la sección</label>
+            <input style={S.input} value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Ej: Historia, Valores, Misión…" />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ ...S.label, marginBottom: 8 }}>Contenido</label>
+            <LegioEditor content={contenido} onChange={setContenido} minHeight={400} stickyTop={96} />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={S.btn("primary")} onClick={save}>Guardar</button>
+            <button style={S.btn("ghost")} onClick={resetForm}>Cancelar</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <h3 style={{ ...S.h3, margin: 0 }}>Secciones ({secciones.length})</h3>
+        {canEdit && (
+          <button style={S.btn("primary")} onClick={() => { setEditId("new"); setTitulo(""); setContenido(""); }}>
+            + Nueva sección
+          </button>
+        )}
+      </div>
+      {sorted.length === 0 ? (
+        <p style={{ color: C.muted }}>Sin secciones. Crea la primera con el botón de arriba.</p>
+      ) : sorted.map((sec, i) => (
+        <div key={sec._id} style={{ ...S.card, display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, color: C.accent, letterSpacing: 1 }}>{sec.titulo}</div>
+            {sec.autor && <div style={{ color: C.muted, fontSize: 11, marginTop: 4, fontFamily: "'Share Tech Mono', monospace" }}>@{sec.autor}</div>}
+          </div>
+          {canEdit && (
+            <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+              <button style={{ ...S.btn("ghost"), padding: "4px 8px", fontSize: 11 }} onClick={() => move(sec._id, "up")} disabled={i === 0}>▲</button>
+              <button style={{ ...S.btn("ghost"), padding: "4px 8px", fontSize: 11 }} onClick={() => move(sec._id, "down")} disabled={i === sorted.length - 1}>▼</button>
+              <button style={S.btn("ghost")} onClick={() => startEdit(sec)}>✎ Editar</button>
+              <button style={S.btn("danger")} onClick={() => del(sec)}>✕</button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────── */
+/*  TAB SALA DE LA FAMA (ADMIN)            */
+/* ─────────────────────────────────────── */
+function TabSalaFama({ salaFama, condecoraciones, isJefe, canDo }) {
+  const allMembers    = useCollection("members");
+  const activeMembers = allMembers.filter(m => m.accessStatus === "activo");
+
+  const [selId,   setSelId]   = useState("");
+  const [desc,    setDesc]    = useState("");
+  const [decoIds, setDecoIds] = useState([]);
+
+  const canEdit = isJefe || canDo("manage_members");
+  const sorted  = [...salaFama].sort((a, b) => (a.orden || 0) - (b.orden || 0));
+
+  /* Condecoraciones del miembro seleccionado */
+  const selDecos = condecoraciones.filter(d => d.memberId === selId);
+
+  const toggleDeco = id => setDecoIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+
+  const save = async () => {
+    if (!selId) return;
+    const mem = activeMembers.find(m => m._id === selId);
+    const maxOrden = salaFama.reduce((mx, e) => Math.max(mx, e.orden || 0), 0);
+    await fbAdd("sala_fama", {
+      memberId:     selId,
+      memberHandle: mem?.handle || "",
+      descripcion:  desc.trim(),
+      decoIds,
+      orden:        maxOrden + 1,
+    });
+    setSelId(""); setDesc(""); setDecoIds([]);
+  };
+
+  const del = async entry => {
+    if (!confirm(`¿Retirar a @${entry.memberHandle} de la Sala de la Fama?`)) return;
+    await fbDel("sala_fama", entry._id);
+  };
+
+  const move = (id, dir) => {
+    const i = sorted.findIndex(e => e._id === id);
+    if (dir === "up" && i > 0) {
+      fbSet("sala_fama", sorted[i]._id,   { orden: sorted[i - 1].orden });
+      fbSet("sala_fama", sorted[i - 1]._id, { orden: sorted[i].orden });
+    }
+    if (dir === "down" && i < sorted.length - 1) {
+      fbSet("sala_fama", sorted[i]._id,   { orden: sorted[i + 1].orden });
+      fbSet("sala_fama", sorted[i + 1]._id, { orden: sorted[i].orden });
+    }
+  };
+
+  return (
+    <div>
+      {canEdit && (
+        <div style={{ ...S.card, marginBottom: 24 }}>
+          <h3 style={S.h3}>Añadir a la Sala de la Fama</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={S.label}>Legionario</label>
+              <select style={S.input} value={selId} onChange={e => { setSelId(e.target.value); setDecoIds([]); }}>
+                <option value="">— Seleccionar —</option>
+                {activeMembers.map(m => (
+                  <option key={m._id} value={m._id}>@{m.handle}{m.displayName && m.displayName !== m.handle ? ` — ${m.displayName}` : ""}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={S.label}>Descripción</label>
+              <input style={S.input} value={desc} onChange={e => setDesc(e.target.value)} placeholder="Motivo del reconocimiento…" />
+            </div>
+          </div>
+
+          {selId && (
+            <div style={{ marginBottom: 16 }}>
+              <label style={S.label}>Insignias a mostrar</label>
+              {selDecos.length === 0 ? (
+                <p style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>Este legionario no tiene condecoraciones registradas.</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+                  {selDecos.map(d => (
+                    <label key={d._id} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", padding: "4px 0", borderBottom: `1px solid ${C.border}20` }}>
+                      <input type="checkbox" checked={decoIds.includes(d._id)} onChange={() => toggleDeco(d._id)}
+                        style={{ accentColor: C.accent, width: 14, height: 14, cursor: "pointer" }} />
+                      {d.imagenUrl
+                        ? <img src={d.imagenUrl} alt={d.nombre} style={{ width: 24, height: 24, objectFit: "contain" }} />
+                        : <span style={{ fontSize: 18 }}>🎖</span>
+                      }
+                      <span style={{ fontSize: 13, color: decoIds.includes(d._id) ? C.text : C.muted }}>{d.nombre}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <button style={S.btn("primary")} onClick={save} disabled={!selId}>Añadir</button>
+        </div>
+      )}
+
+      <div style={S.card}>
+        <h3 style={S.h3}>Sala de la Fama ({salaFama.length})</h3>
+        {sorted.length === 0 ? (
+          <p style={{ color: C.muted }}>Sin entradas.</p>
+        ) : sorted.map((entry, i) => {
+          const decos = condecoraciones.filter(d => (entry.decoIds || []).includes(d._id));
+          return (
+            <div key={entry._id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: `1px solid ${C.border}20` }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, color: C.accent }}>{entry.memberHandle}</div>
+                {entry.descripcion && <div style={{ color: C.muted, fontSize: 12, marginTop: 2 }}>{entry.descripcion}</div>}
+                {decos.length > 0 && (
+                  <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap", alignItems: "center" }}>
+                    {decos.map(d => (
+                      d.imagenUrl
+                        ? <img key={d._id} src={d.imagenUrl} alt={d.nombre} title={d.nombre} style={{ width: 24, height: 24, objectFit: "contain" }} />
+                        : <span key={d._id} title={d.nombre} style={{ fontSize: 18 }}>🎖</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {canEdit && (
+                <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                  <button style={{ ...S.btn("ghost"), padding: "3px 7px", fontSize: 11 }} onClick={() => move(entry._id, "up")} disabled={i === 0}>▲</button>
+                  <button style={{ ...S.btn("ghost"), padding: "3px 7px", fontSize: 11 }} onClick={() => move(entry._id, "down")} disabled={i === sorted.length - 1}>▼</button>
+                  <button style={{ ...S.btn("danger"), padding: "3px 7px", fontSize: 11 }} onClick={() => del(entry)}>✕</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────── */
+/*  TAB CONDECORACIONES (ADMIN)            */
+/* ─────────────────────────────────────── */
+function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
+  const allMembers    = useCollection("members");
+  const activeMembers = allMembers.filter(m => m.accessStatus === "activo");
+
+  const [selId,  setSelId]  = useState("");
+  const [nombre, setNombre] = useState("");
+  const [desc,   setDesc]   = useState("");
+  const [fecha,  setFecha]  = useState("");
+
+  const canEdit = isJefe || canDo("manage_members");
+
+  const save = async () => {
+    if (!selId || !nombre.trim()) return;
+    const mem = activeMembers.find(m => m._id === selId);
+    await fbAdd("condecoraciones", {
+      memberId:     selId,
+      memberHandle: mem?.handle || "",
+      nombre:       nombre.trim(),
+      descripcion:  desc.trim(),
+      fecha:        fecha || null,
+      otorgadoPor:  member.handle,
+    });
+    setSelId(""); setNombre(""); setDesc(""); setFecha("");
+  };
+
+  const del = async d => {
+    if (!confirm(`¿Retirar "${d.nombre}" de @${d.memberHandle}?`)) return;
+    await fbDel("condecoraciones", d._id);
+  };
+
+  /* Agrupar por miembro */
+  const byMember = condecoraciones.reduce((acc, d) => {
+    if (!acc[d.memberId]) acc[d.memberId] = { handle: d.memberHandle, decos: [] };
+    acc[d.memberId].decos.push(d);
+    return acc;
+  }, {});
+
+  return (
+    <div>
+      {canEdit && (
+        <div style={{ ...S.card, marginBottom: 24 }}>
+          <h3 style={S.h3}>Otorgar condecoración</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={S.label}>Legionario</label>
+              <select style={S.input} value={selId} onChange={e => setSelId(e.target.value)}>
+                <option value="">— Seleccionar —</option>
+                {activeMembers.map(m => <option key={m._id} value={m._id}>@{m.handle}{m.displayName && m.displayName !== m.handle ? ` — ${m.displayName}` : ""}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={S.label}>Fecha</label>
+              <input style={{ ...S.input, colorScheme: "dark" }} type="date" value={fecha} onChange={e => setFecha(e.target.value)} />
+            </div>
+            <div>
+              <label style={S.label}>Nombre de la condecoración</label>
+              <input style={S.input} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Cruz al Valor, Medalla de Honor…" />
+            </div>
+            <div>
+              <label style={S.label}>Descripción / Motivo</label>
+              <input style={S.input} value={desc} onChange={e => setDesc(e.target.value)} placeholder="Motivo de la distinción…" />
+            </div>
+          </div>
+          <button style={S.btn("primary")} onClick={save} disabled={!selId || !nombre.trim()}>Otorgar</button>
+        </div>
+      )}
+
+      <div style={S.card}>
+        <h3 style={S.h3}>Registro de condecoraciones ({condecoraciones.length})</h3>
+        {condecoraciones.length === 0 ? (
+          <p style={{ color: C.muted }}>Sin condecoraciones registradas.</p>
+        ) : Object.entries(byMember).map(([memberId, { handle, decos }]) => (
+          <div key={memberId} style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 11, letterSpacing: 2, color: C.accent, fontFamily: "'Oswald', sans-serif", marginBottom: 6, textTransform: "uppercase" }}>
+              @{handle}
+            </div>
+            {decos.map(d => (
+              <div key={d._id} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "6px 0 6px 12px", borderBottom: `1px solid ${C.border}20` }}>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>🎖</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13 }}>{d.nombre}</div>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 2 }}>
+                    {d.descripcion && <span style={{ color: C.muted, fontSize: 12 }}>{d.descripcion}</span>}
+                    {d.fecha && (
+                      <span style={{ color: C.muted, fontSize: 11 }}>
+                        {new Date(d.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}
+                      </span>
+                    )}
+                    {d.otorgadoPor && <span style={{ color: C.muted, fontSize: 11 }}>por @{d.otorgadoPor}</span>}
+                  </div>
+                </div>
+                {canEdit && (
+                  <button style={{ ...S.btn("danger"), padding: "3px 8px", fontSize: 11, flexShrink: 0 }} onClick={() => del(d)}>✕</button>
+                )}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────── */
+/*  TAB OPERACIONES (ADMIN)                */
+/* ─────────────────────────────────────── */
+function TabOperaciones({ ops, member, isJefe, canDo }) {
+  const canEdit = isJefe || canDo("manage_ops");
+  const [editId,   setEditId]   = useState(null);
+  const [nombre,   setNombre]   = useState("");
+  const [tipo,     setTipo]     = useState(OP_TIPOS[0]);
+  const [fecha,    setFecha]    = useState("");
+  const [estado,   setEstado]   = useState("planificada");
+  const [desc,     setDesc]     = useState("");
+
+  const resetForm = () => { setEditId(null); setNombre(""); setTipo(OP_TIPOS[0]); setFecha(""); setEstado("planificada"); setDesc(""); };
+
+  const startEdit = op => {
+    setEditId(op._id);
+    setNombre(op.nombre || "");
+    setTipo(op.tipo || OP_TIPOS[0]);
+    setFecha(op.fecha || "");
+    setEstado(op.estado || "planificada");
+    setDesc(op.descripcion || "");
+  };
+
+  const save = async () => {
+    if (!nombre.trim() || !fecha) return;
+    const data = { nombre: nombre.trim(), tipo, fecha, estado, descripcion: desc.trim(), autor: member.handle };
+    if (editId) {
+      await fbUpd("operaciones", editId, data);
+    } else {
+      await fbAdd("operaciones", data);
+    }
+    resetForm();
+  };
+
+  const del = async op => {
+    if (!confirm(`¿Eliminar la operación "${op.nombre}"?`)) return;
+    await fbDel("operaciones", op._id);
+  };
+
+  const confirmados = op => Object.values(op.asistencia || {}).filter(v => v === "confirmada").length;
+  const bajas       = op => Object.values(op.asistencia || {}).filter(v => v === "baja").length;
+
+  return (
+    <div>
+      {canEdit && (
+        <div style={{ ...S.card, marginBottom: 24 }}>
+          <h3 style={S.h3}>{editId ? "Editar operación" : "Nueva operación"}</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div>
+              <label style={S.label}>Nombre / Designación</label>
+              <input style={S.input} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: OP TRUENO ROJO" />
+            </div>
+            <div>
+              <label style={S.label}>Fecha</label>
+              <input style={{ ...S.input, colorScheme: "dark" }} type="date" value={fecha} onChange={e => setFecha(e.target.value)} />
+            </div>
+            <div>
+              <label style={S.label}>Tipo</label>
+              <select style={S.input} value={tipo} onChange={e => setTipo(e.target.value)}>
+                {OP_TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={S.label}>Estado</label>
+              <select style={S.input} value={estado} onChange={e => setEstado(e.target.value)}>
+                {Object.entries(OP_ESTADOS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ ...S.label, marginBottom: 8 }}>Descripción / Briefing</label>
+            <LegioEditor content={desc} onChange={setDesc} minHeight={200} stickyTop={96} />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={S.btn("primary")} onClick={save}>{editId ? "Guardar" : "Crear operación"}</button>
+            {editId && <button style={S.btn("ghost")} onClick={resetForm}>Cancelar</button>}
+          </div>
+        </div>
+      )}
+
+      <div style={S.card}>
+        <h3 style={S.h3}>Operaciones ({ops.length})</h3>
+        {ops.length === 0 ? (
+          <p style={{ color: C.muted }}>Sin operaciones registradas.</p>
+        ) : ops.map(op => {
+          const est = OP_ESTADOS[op.estado] || OP_ESTADOS.planificada;
+          return (
+            <div key={op._id} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 0", borderBottom: `1px solid ${C.border}20` }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
+                  <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, fontWeight: 600 }}>{op.nombre}</span>
+                  <span style={S.badge(est.color)}>{est.label}</span>
+                  <span style={S.badge(C.accentDim)}>{op.tipo}</span>
+                </div>
+                <div style={{ display: "flex", gap: 12, color: C.muted, fontSize: 12, flexWrap: "wrap" }}>
+                  {op.fecha && <span>{new Date(op.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}</span>}
+                  <span>Confirmados: <span style={{ color: C.green }}>{confirmados(op)}</span></span>
+                  <span>Bajas: <span style={{ color: C.danger }}>{bajas(op)}</span></span>
+                  {op.autor && <span>@{op.autor}</span>}
+                </div>
+                {op.descripcion && <div style={{ color: C.muted, fontSize: 12, marginTop: 4, fontStyle: "italic" }}>Con briefing</div>}
+              </div>
+              {canEdit && (
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  <button style={{ ...S.btn("ghost"), padding: "4px 10px", fontSize: 12 }} onClick={() => startEdit(op)}>✎</button>
+                  <button style={{ ...S.btn("danger"), padding: "4px 10px", fontSize: 12 }} onClick={() => del(op)}>✕</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────── */
+/*  CALENDARIO DE OPERACIONES              */
+/* ─────────────────────────────────────── */
+const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const DIAS  = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+
+function CalendarioView({ ops, member }) {
+  const hoy = new Date();
+  const [year,  setYear]  = useState(hoy.getFullYear());
+  const [month, setMonth] = useState(hoy.getMonth());
+  const [selOp, setSelOp] = useState(null);
+
+  const prevMes = () => { if (month === 0) { setYear(y => y - 1); setMonth(11); } else setMonth(m => m - 1); };
+  const nextMes = () => { if (month === 11) { setYear(y => y + 1); setMonth(0); } else setMonth(m => m + 1); };
+
+  const diasEnMes  = new Date(year, month + 1, 0).getDate();
+  const primerDia  = new Date(year, month, 1).getDay();
+  const offsetLun  = (primerDia + 6) % 7; // lunes = 0
+
+  /* Agrupar operaciones del mes por día */
+  const opsPorDia = {};
+  ops.forEach(op => {
+    if (!op.fecha) return;
+    const [y, m, d] = op.fecha.split("-").map(Number);
+    if (y === year && m === month + 1) {
+      if (!opsPorDia[d]) opsPorDia[d] = [];
+      opsPorDia[d].push(op);
+    }
+  });
+
+  /* Celdas: null para huecos iniciales, número de día para el resto */
+  const celdas = [...Array(offsetLun).fill(null), ...Array.from({ length: diasEnMes }, (_, i) => i + 1)];
+
+  const setAsistencia = async (op, valor) => {
+    const field = `asistencia.${member._id}`;
+    await fbUpd("operaciones", op._id, { [field]: valor === null ? deleteField() : valor });
+    setSelOp(prev => {
+      if (!prev) return prev;
+      const a = { ...(prev.asistencia || {}) };
+      if (valor === null) delete a[member._id]; else a[member._id] = valor;
+      return { ...prev, asistencia: a };
+    });
+  };
+
+  return (
+    <div>
+      <h2 style={S.h2}>Calendario de Operaciones</h2>
+
+      {/* Navegación de mes */}
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
+        <button style={{ ...S.btn("ghost"), padding: "6px 14px" }} onClick={prevMes}>◄</button>
+        <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 20, color: C.accent, letterSpacing: 3, minWidth: 240, textAlign: "center", textTransform: "uppercase" }}>
+          {MESES[month]} {year}
+        </span>
+        <button style={{ ...S.btn("ghost"), padding: "6px 14px" }} onClick={nextMes}>►</button>
+        <button style={{ ...S.btn("ghost"), padding: "6px 14px", marginLeft: 8 }}
+          onClick={() => { setYear(hoy.getFullYear()); setMonth(hoy.getMonth()); }}>
+          Hoy
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, alignItems: "start" }}>
+        {/* Calendario */}
+        <div style={S.card}>
+          {/* Cabecera días de la semana */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2, marginBottom: 8 }}>
+            {DIAS.map(d => (
+              <div key={d} style={{ textAlign: "center", padding: "4px 0", fontFamily: "'Oswald', sans-serif", fontSize: 11, color: C.muted, letterSpacing: 2 }}>
+                {d}
+              </div>
+            ))}
+          </div>
+          {/* Celdas */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
+            {celdas.map((dia, i) => {
+              if (!dia) return <div key={`v-${i}`} />;
+              const esHoy = dia === hoy.getDate() && month === hoy.getMonth() && year === hoy.getFullYear();
+              const dayOps = opsPorDia[dia] || [];
+              return (
+                <div key={dia} style={{
+                  minHeight: 64, padding: "4px 5px",
+                  background: esHoy ? "rgba(201,162,74,0.08)" : C.surface2,
+                  border: esHoy ? `1px solid ${C.accent}66` : `1px solid ${C.border}20`,
+                  borderRadius: 4,
+                }}>
+                  <div style={{ fontSize: 12, color: esHoy ? C.accent : C.muted, fontFamily: "'Oswald', sans-serif", marginBottom: 3, fontWeight: esHoy ? 700 : 400 }}>
+                    {dia}
+                  </div>
+                  {dayOps.map(op => {
+                    const est   = OP_ESTADOS[op.estado] || OP_ESTADOS.planificada;
+                    const myVal = op.asistencia?.[member._id];
+                    const isSel = selOp?._id === op._id;
+                    return (
+                      <div key={op._id}
+                        onClick={() => setSelOp(isSel ? null : op)}
+                        title={op.nombre}
+                        style={{
+                          background: isSel ? est.color + "44" : est.color + "18",
+                          border: `1px solid ${isSel ? est.color : est.color + "55"}`,
+                          borderRadius: 3, padding: "2px 5px", marginBottom: 2,
+                          fontSize: 10, color: est.color, cursor: "pointer",
+                          fontFamily: "'Share Tech Mono', monospace",
+                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                          display: "flex", alignItems: "center", gap: 3,
+                        }}
+                      >
+                        {myVal === "confirmada" ? "✓" : myVal === "baja" ? "✗" : "·"}
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{op.nombre}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Leyenda */}
+          <div style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
+            {Object.entries(OP_ESTADOS).map(([k, v]) => (
+              <div key={k} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <div style={{ width: 8, height: 8, borderRadius: 2, background: v.color, flexShrink: 0 }} />
+                <span style={{ fontSize: 11, color: C.muted, fontFamily: "'Share Tech Mono', monospace" }}>{v.label}</span>
+              </div>
+            ))}
+            <span style={{ fontSize: 11, color: C.muted }}>· pendiente · ✓ confirmado · ✗ baja</span>
+          </div>
+        </div>
+
+        {/* Panel de detalle */}
+        <div>
+          {!selOp ? (
+            <div style={{ ...S.card, textAlign: "center", padding: 32, color: C.muted, fontSize: 13 }}>
+              Selecciona una operación del calendario para ver su detalle.
+            </div>
+          ) : (() => {
+            const est    = OP_ESTADOS[selOp.estado] || OP_ESTADOS.planificada;
+            const myVal  = selOp.asistencia?.[member._id] || null;
+            const conf   = Object.values(selOp.asistencia || {}).filter(v => v === "confirmada").length;
+            const bajasN = Object.values(selOp.asistencia || {}).filter(v => v === "baja").length;
+
+            const AsBtn = ({ valor, label, color }) => (
+              <button onClick={() => setAsistencia(selOp, myVal === valor ? null : valor)}
+                style={{
+                  ...S.btn("ghost"),
+                  background: myVal === valor ? color + "22" : "transparent",
+                  border: `1px solid ${color}`,
+                  color: myVal === valor ? color : C.muted,
+                  padding: "7px 16px", fontSize: 12, flex: 1,
+                }}>
+                {label}
+              </button>
+            );
+
+            return (
+              <div style={{ ...S.card, borderTop: `3px solid ${est.color}` }}>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8, alignItems: "center" }}>
+                  <span style={S.badge(est.color)}>{est.label}</span>
+                  <span style={S.badge(C.accentDim)}>{selOp.tipo}</span>
+                  {selOp.fecha && (
+                    <span style={{ color: C.muted, fontSize: 11, fontFamily: "'Share Tech Mono', monospace" }}>
+                      {new Date(selOp.fecha + "T12:00:00").toLocaleDateString("es-ES", { weekday: "long", day: "2-digit", month: "long" })}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 18, color: C.accent, letterSpacing: 2, marginBottom: 12 }}>
+                  {selOp.nombre}
+                </div>
+
+                {selOp.descripcion && (
+                  <div className="legio-render" style={{ color: C.muted, fontSize: 13, lineHeight: 1.6, marginBottom: 16 }}
+                    dangerouslySetInnerHTML={{ __html: selOp.descripcion }} />
+                )}
+
+                <div style={{ display: "flex", gap: 20, marginBottom: 16 }}>
+                  <span style={{ fontSize: 13 }}><span style={{ color: C.green, fontWeight: 700 }}>{conf}</span> <span style={{ color: C.muted }}>confirmados</span></span>
+                  <span style={{ fontSize: 13 }}><span style={{ color: C.danger, fontWeight: 700 }}>{bajasN}</span> <span style={{ color: C.muted }}>bajas</span></span>
+                </div>
+
+                <div style={{ display: "flex", gap: 8 }}>
+                  <AsBtn valor="confirmada" label="Confirmo asistencia" color={C.green} />
+                  <AsBtn valor="baja"       label="Doy baja"            color={C.danger} />
+                </div>
+                {myVal && (
+                  <div style={{ fontSize: 12, color: myVal === "confirmada" ? C.green : C.danger, marginTop: 8 }}>
+                    Tu estado: {myVal === "confirmada" ? "Confirmado" : "Baja"}
+                    <span style={{ color: C.muted, marginLeft: 8, cursor: "pointer" }} onClick={() => setAsistencia(selOp, null)}>
+                      (cancelar)
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────── */
+/*  VISTA PÚBLICA OPERACIONES              */
+/* ─────────────────────────────────────── */
+function OperacionesView({ ops, member }) {
+  const [sel, setSel] = useState(null);
+
+  const setAsistencia = async (op, valor) => {
+    const field = `asistencia.${member._id}`;
+    await fbUpd("operaciones", op._id, { [field]: valor === null ? deleteField() : valor });
+    setSel(prev => {
+      if (!prev) return prev;
+      const a = { ...(prev.asistencia || {}) };
+      if (valor === null) delete a[member._id]; else a[member._id] = valor;
+      return { ...prev, asistencia: a };
+    });
+  };
+
+  if (sel) {
+    const est     = OP_ESTADOS[sel.estado] || OP_ESTADOS.planificada;
+    const myVal   = sel.asistencia?.[member._id] || null;
+    const conf    = Object.values(sel.asistencia || {}).filter(v => v === "confirmada").length;
+    const bajasN  = Object.values(sel.asistencia || {}).filter(v => v === "baja").length;
+
+    const AsBtn = ({ valor, label, color }) => (
+      <button
+        onClick={() => setAsistencia(sel, valor)}
+        style={{
+          ...S.btn(myVal === valor ? "primary" : "ghost"),
+          background: myVal === valor ? color : "transparent",
+          border: `1px solid ${color}`,
+          color: myVal === valor ? "#0a0c08" : color,
+          padding: "8px 20px", fontSize: 13,
+        }}>
+        {label}
+      </button>
+    );
+
+    return (
+      <div>
+        <button style={{ ...S.btn("ghost"), marginBottom: 20 }} onClick={() => setSel(null)}>← Volver</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+          <span style={S.badge(est.color)}>{est.label}</span>
+          <span style={S.badge(C.accentDim)}>{sel.tipo}</span>
+          {sel.fecha && (
+            <span style={{ color: C.muted, fontSize: 12, fontFamily: "'Share Tech Mono', monospace" }}>
+              {new Date(sel.fecha + "T12:00:00").toLocaleDateString("es-ES", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
+            </span>
+          )}
+        </div>
+        <h2 style={S.h2}>{sel.nombre}</h2>
+
+        {sel.descripcion && (
+          <div style={{ ...S.card, marginBottom: 24, borderLeft: `3px solid ${C.accent}55` }}>
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.muted, letterSpacing: 2, marginBottom: 8 }}>BRIEFING</div>
+            <div
+              className="legio-render"
+              style={{ color: C.text, lineHeight: 1.7, fontSize: 14 }}
+              dangerouslySetInnerHTML={{ __html: sel.descripcion }}
+            />
+          </div>
+        )}
+
+        <div style={{ ...S.card, marginBottom: 24 }}>
+          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.muted, letterSpacing: 2, marginBottom: 16 }}>ASISTENCIA</div>
+          <div style={{ display: "flex", gap: 24, marginBottom: 16 }}>
+            <span style={{ fontSize: 13 }}>
+              <span style={{ color: C.green, fontWeight: 700, marginRight: 4 }}>{conf}</span>
+              <span style={{ color: C.muted }}>confirmados</span>
+            </span>
+            <span style={{ fontSize: 13 }}>
+              <span style={{ color: C.danger, fontWeight: 700, marginRight: 4 }}>{bajasN}</span>
+              <span style={{ color: C.muted }}>bajas</span>
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+            <AsBtn valor="confirmada" label="Confirmo asistencia" color={C.green} />
+            <AsBtn valor="baja"       label="Doy baja"            color={C.danger} />
+            {myVal && (
+              <button style={{ ...S.btn("ghost"), padding: "8px 16px", fontSize: 13 }}
+                onClick={() => setAsistencia(sel, null)}>
+                Cancelar respuesta
+              </button>
+            )}
+          </div>
+          {myVal && (
+            <div style={{ fontSize: 12, color: myVal === "confirmada" ? C.green : C.danger, marginTop: 4 }}>
+              Tu estado: {myVal === "confirmada" ? "Confirmado" : "Baja"}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const grupos = {
+    en_curso:    ops.filter(o => o.estado === "en_curso"),
+    planificada: ops.filter(o => o.estado === "planificada"),
+    completada:  ops.filter(o => o.estado === "completada"),
+    cancelada:   ops.filter(o => o.estado === "cancelada"),
+  };
+
+  return (
+    <div>
+      <h2 style={S.h2}>Operaciones</h2>
+      {ops.length === 0 && <p style={{ color: C.muted }}>Sin operaciones registradas.</p>}
+      {Object.entries(grupos).map(([estadoKey, lista]) => {
+        if (!lista.length) return null;
+        const est = OP_ESTADOS[estadoKey];
+        return (
+          <div key={estadoKey} style={{ marginBottom: 32 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, borderLeft: `4px solid ${est.color}`, paddingLeft: 16, marginBottom: 16 }}>
+              <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 16, color: est.color, letterSpacing: 3, textTransform: "uppercase" }}>
+                {est.label}
+              </span>
+              <span style={S.badge(est.color)}>{lista.length}</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingLeft: 20 }}>
+              {lista.map(op => {
+                const myVal  = op.asistencia?.[member._id] || null;
+                const conf   = Object.values(op.asistencia || {}).filter(v => v === "confirmada").length;
+                return (
+                  <div key={op._id}
+                    style={{ ...S.card, cursor: "pointer", borderLeft: `2px solid ${est.color}55`, display: "flex", alignItems: "center", gap: 16, transition: "border-color 0.2s" }}
+                    onClick={() => setSel(op)}
+                    onMouseEnter={e => e.currentTarget.style.borderLeftColor = est.color}
+                    onMouseLeave={e => e.currentTarget.style.borderLeftColor = est.color + "55"}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
+                        <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, fontWeight: 600 }}>{op.nombre}</span>
+                        <span style={S.badge(C.accentDim)}>{op.tipo}</span>
+                      </div>
+                      <div style={{ display: "flex", gap: 12, color: C.muted, fontSize: 12 }}>
+                        {op.fecha && <span>{new Date(op.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}</span>}
+                        <span style={{ color: C.green }}>{conf} confirmados</span>
+                      </div>
+                    </div>
+                    {myVal && (
+                      <span style={S.badge(myVal === "confirmada" ? C.green : C.danger)}>
+                        {myVal === "confirmada" ? "Confirmado" : "Baja"}
+                      </span>
+                    )}
+                    <span style={{ color: C.muted, fontSize: 18 }}>›</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

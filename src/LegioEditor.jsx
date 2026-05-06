@@ -1,9 +1,11 @@
+import { useState, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
 import { Color } from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
+import Image from "@tiptap/extension-image";
 
 const C = {
   bg:     "#111214",
@@ -25,7 +27,34 @@ const btnStyle = (active) => ({
   lineHeight: 1.4,
 });
 
+const SIZE_PRESETS = ["25%", "50%", "75%", "100%"];
+
+/* Image extension con atributo width */
+const ResizableImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      width: {
+        default: "100%",
+        renderHTML: attrs => ({ style: `width: ${attrs.width || "100%"}; height: auto; display: block;` }),
+        parseHTML: el => el.style.width || "100%",
+      },
+    };
+  },
+});
+
 export default function LegioEditor({ content, onChange, minHeight = 320, stickyTop = 0 }) {
+  const [imgOpen, setImgOpen] = useState(false);
+  const [imgUrl,  setImgUrl]  = useState("");
+  const [imgSize, setImgSize] = useState("100%");
+  const imgInputRef = useRef(null);
+
+  const insertImage = () => {
+    const url = imgUrl.trim();
+    if (url) editor.chain().focus().setImage({ src: url, width: imgSize }).run();
+    setImgUrl(""); setImgOpen(false); setImgSize("100%");
+  };
+
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -33,12 +62,16 @@ export default function LegioEditor({ content, onChange, minHeight = 320, sticky
       TextStyle,
       Color,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
+      ResizableImage.configure({ allowBase64: false }),
     ],
     content,
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
   });
 
   if (!editor) return null;
+
+  const imgSelected = editor.isActive("image");
+  const currentWidth = editor.getAttributes("image").width || "100%";
 
   return (
     <div style={{ border: "1px solid rgba(100, 18, 18, 0.12)", borderRadius: 6, boxShadow: "0 0 18px rgba(90, 12, 12, 0.2), 0 4px 14px rgba(0,0,0,0.4)" }}>
@@ -75,9 +108,55 @@ export default function LegioEditor({ content, onChange, minHeight = 320, sticky
 
         <span style={{ width: 1, background: C.border, margin: "0 4px" }} />
 
+        <button style={btnStyle(imgOpen || imgSelected)} onMouseDown={e => {
+          e.preventDefault();
+          if (imgSelected) return;
+          setImgOpen(o => !o);
+          setTimeout(() => imgInputRef.current?.focus(), 50);
+        }}>IMG</button>
+
+        {/* Presets de tamaño — solo visibles cuando hay imagen seleccionada */}
+        {imgSelected && (
+          <>
+            <span style={{ width: 1, background: C.border, margin: "0 4px" }} />
+            {SIZE_PRESETS.map(w => (
+              <button key={w} style={btnStyle(currentWidth === w)}
+                onMouseDown={e => { e.preventDefault(); editor.chain().focus().updateAttributes("image", { width: w }).run(); }}>
+                {w}
+              </button>
+            ))}
+          </>
+        )}
+
+        <span style={{ width: 1, background: C.border, margin: "0 4px" }} />
+
         <button style={btnStyle(false)} onMouseDown={e => { e.preventDefault(); editor.chain().focus().undo().run(); }}>↩</button>
         <button style={btnStyle(false)} onMouseDown={e => { e.preventDefault(); editor.chain().focus().redo().run(); }}>↪</button>
       </div>
+
+      {/* Panel insertar imagen */}
+      {imgOpen && (
+        <div style={{ background: "#1a1b1e", borderBottom: `1px solid ${C.border}`, padding: "6px 10px", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          <input
+            ref={imgInputRef}
+            value={imgUrl}
+            onChange={e => setImgUrl(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); insertImage(); } if (e.key === "Escape") { setImgOpen(false); setImgUrl(""); } }}
+            placeholder="https://ejemplo.com/imagen.jpg"
+            style={{ flex: 1, minWidth: 200, background: "#111214", border: `1px solid ${C.border}`, borderRadius: 3, color: C.text, padding: "4px 10px", fontSize: 12, fontFamily: "'Share Tech Mono', monospace", outline: "none" }}
+          />
+          <div style={{ display: "flex", gap: 4 }}>
+            {SIZE_PRESETS.map(w => (
+              <button key={w} style={btnStyle(imgSize === w)}
+                onMouseDown={e => { e.preventDefault(); setImgSize(w); }}>
+                {w}
+              </button>
+            ))}
+          </div>
+          <button style={{ ...btnStyle(true), padding: "4px 12px" }} onMouseDown={e => { e.preventDefault(); insertImage(); }}>Insertar</button>
+          <button style={{ ...btnStyle(false), padding: "4px 8px" }} onMouseDown={e => { e.preventDefault(); setImgOpen(false); setImgUrl(""); setImgSize("100%"); }}>✕</button>
+        </div>
+      )}
 
       {/* Editor area */}
       <EditorContent editor={editor} style={{ padding: "12px 16px", background: "#16171a", borderRadius: "0 0 4px 4px" }} />
@@ -94,6 +173,8 @@ export default function LegioEditor({ content, onChange, minHeight = 320, sticky
         .ProseMirror p { margin: 6px 0; }
         .ProseMirror code { font-family: 'Share Tech Mono', monospace; background: #1e1f22; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
         .ProseMirror pre { background: #16171a; padding: 12px; border-radius: 4px; overflow-x: auto; }
+        .ProseMirror img { height: auto; border-radius: 4px; border: 1px solid rgba(100,18,18,0.25); margin: 8px 0; display: block; }
+        .ProseMirror img.ProseMirror-selectednode { outline: 2px solid ${C.accent}; }
         .legio-render h1 { font-family: 'Oswald', sans-serif; font-size: 22px; color: ${C.accent}; letter-spacing: 2px; margin: 16px 0 8px; text-transform: uppercase; }
         .legio-render h2 { font-family: 'Oswald', sans-serif; font-size: 18px; color: ${C.accent}; letter-spacing: 1px; margin: 14px 0 6px; }
         .legio-render h3 { font-family: 'Oswald', sans-serif; font-size: 15px; margin: 12px 0 4px; }
@@ -103,6 +184,7 @@ export default function LegioEditor({ content, onChange, minHeight = 320, sticky
         .legio-render hr { border: none; border-top: 1px solid ${C.border}; margin: 16px 0; }
         .legio-render p { margin: 6px 0; line-height: 1.7; }
         .legio-render code { font-family: 'Share Tech Mono', monospace; background: #1e1f22; padding: 2px 6px; border-radius: 3px; font-size: 12px; }
+        .legio-render img { height: auto; border-radius: 4px; border: 1px solid rgba(100,18,18,0.25); margin: 8px 0; display: block; }
       `}</style>
     </div>
   );
