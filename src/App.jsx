@@ -37,75 +37,75 @@ const C = {
 const S = {
   page: {
     minHeight: "100vh", background: C.bg, color: C.text,
-    fontFamily: "'Inter', sans-serif", fontSize: 14,
+    fontFamily: "'Inter', sans-serif", fontSize: 15,
   },
   nav: {
-    position: "sticky", top: 0, zIndex: 100, height: 64,
+    position: "sticky", top: 0, zIndex: 100, height: 76,
     background: "rgba(42,10,10,0.97)", borderBottom: `1px solid ${C.border}`,
     backdropFilter: "blur(10px)",
-    display: "flex", alignItems: "center", padding: "0 24px", gap: 24,
+    display: "flex", alignItems: "center", padding: "0 32px", gap: 32,
   },
   navLogo: {
-    display: "flex", alignItems: "center", gap: 12, marginRight: "auto",
+    display: "flex", alignItems: "center", gap: 14, marginRight: "auto",
   },
   navLogoText: {
-    fontFamily: "'Oswald', sans-serif", fontSize: 20, fontWeight: 700,
-    color: C.accent, letterSpacing: 3, lineHeight: 1,
+    fontFamily: "'Oswald', sans-serif", fontSize: 24, fontWeight: 700,
+    color: C.accent, letterSpacing: 4, lineHeight: 1,
   },
   navLogoSub: {
-    fontFamily: "'Share Tech Mono', monospace", fontSize: 9,
-    color: C.muted, letterSpacing: 2, display: "block",
+    fontFamily: "'Share Tech Mono', monospace", fontSize: 10,
+    color: C.muted, letterSpacing: 3, display: "block",
   },
   navItem: (active) => ({
-    fontFamily: "'Oswald', sans-serif", fontSize: 13, letterSpacing: 2,
+    fontFamily: "'Oswald', sans-serif", fontSize: 15, letterSpacing: 2,
     color: active ? C.accent : C.muted, cursor: "pointer",
     borderBottom: active ? `2px solid ${C.accent}` : "2px solid transparent",
-    paddingBottom: 2, textTransform: "uppercase",
+    paddingBottom: 3, textTransform: "uppercase",
   }),
   card: {
     background: C.surface, border: `1px solid ${C.border}`,
-    borderRadius: 4, padding: 24,
+    borderRadius: 6, padding: 28,
   },
   input: {
     width: "100%", background: "#1a0505", border: `1px solid ${C.border}`,
-    borderRadius: 4, color: C.text, padding: "8px 12px", fontSize: 14,
+    borderRadius: 4, color: C.text, padding: "10px 14px", fontSize: 15,
     fontFamily: "'Share Tech Mono', monospace", outline: "none", boxSizing: "border-box",
   },
   btn: (variant = "primary") => ({
     background: variant === "primary" ? C.accent : variant === "danger" ? C.danger : C.border,
     color: variant === "primary" ? "#0a0c08" : C.text,
-    border: "none", borderRadius: 4, padding: "8px 20px",
-    fontFamily: "'Oswald', sans-serif", fontSize: 13, letterSpacing: 2,
+    border: "none", borderRadius: 4, padding: "10px 24px",
+    fontFamily: "'Oswald', sans-serif", fontSize: 14, letterSpacing: 2,
     cursor: "pointer", textTransform: "uppercase", fontWeight: 600,
   }),
-  label: { display: "block", color: C.muted, fontSize: 12, marginBottom: 4, letterSpacing: 1 },
+  label: { display: "block", color: C.muted, fontSize: 13, marginBottom: 6, letterSpacing: 1 },
   divider: {
-    borderTop: `1px solid ${C.border}`, margin: "20px 0",
+    borderTop: `1px solid ${C.border}`, margin: "24px 0",
   },
   h2: {
-    fontFamily: "'Oswald', sans-serif", fontSize: 22, fontWeight: 600,
-    color: C.accent, letterSpacing: 2, marginBottom: 16, textTransform: "uppercase",
+    fontFamily: "'Oswald', sans-serif", fontSize: 26, fontWeight: 600,
+    color: C.accent, letterSpacing: 3, marginBottom: 20, textTransform: "uppercase",
   },
   h3: {
-    fontFamily: "'Oswald', sans-serif", fontSize: 16, fontWeight: 600,
-    color: C.text, letterSpacing: 1, marginBottom: 12,
+    fontFamily: "'Oswald', sans-serif", fontSize: 18, fontWeight: 600,
+    color: C.text, letterSpacing: 1, marginBottom: 14,
   },
   badge: (color = C.accentDim) => ({
     display: "inline-block", background: color + "33",
     color: color, border: `1px solid ${color}55`,
-    borderRadius: 4, fontSize: 11, padding: "2px 8px",
+    borderRadius: 4, fontSize: 12, padding: "3px 10px",
     fontFamily: "'Share Tech Mono', monospace", letterSpacing: 1,
   }),
   table: { width: "100%", borderCollapse: "collapse" },
   th: {
-    textAlign: "left", padding: "8px 12px",
+    textAlign: "left", padding: "10px 14px",
     borderBottom: `1px solid ${C.border}`,
-    fontFamily: "'Oswald', sans-serif", fontSize: 12,
+    fontFamily: "'Oswald', sans-serif", fontSize: 13,
     color: C.muted, letterSpacing: 2, textTransform: "uppercase",
   },
   td: {
-    padding: "10px 12px", borderBottom: `1px solid ${C.border}20`,
-    fontSize: 13, verticalAlign: "middle",
+    padding: "12px 14px", borderBottom: `1px solid ${C.border}20`,
+    fontSize: 14, verticalAlign: "middle",
   },
 };
 
@@ -225,7 +225,7 @@ export default function App() {
     <div style={S.page}>
       <nav style={S.nav}>
         <div style={S.navLogo}>
-          <img src="/logo.png" alt="Legio Invicta" style={{ height: 44, width: 44, borderRadius: "50%", border: `1px solid ${C.border}` }} />
+          <img src="/logo.png" alt="Legio Invicta" style={{ height: 52, width: 52, borderRadius: "50%", border: `1px solid ${C.border}` }} />
           <div>
             <span style={S.navLogoText}>LEGIO INVICTA</span>
             <span style={S.navLogoSub}>HONOR Y VICTORIA</span>
@@ -241,7 +241,7 @@ export default function App() {
         </span>
       </nav>
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 16px" }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "40px 24px" }}>
         {view === "inicio"         && <InicioView member={member} roles={roles} />}
         {view === "orbat"          && <OrbatView unidades={orbatUnidades} miembros={orbatMiembros} roles={roles} />}
         {view === "especialidades" && <EspecialidadesView especialidades={especialidades} />}
@@ -1134,7 +1134,7 @@ function TabDoctrina({ docs, member, isJefe, canDo }) {
           </div>
           <div style={{ marginBottom: 16 }}>
             <label style={{ ...S.label, marginBottom: 8 }}>Contenido</label>
-            <LegioEditor content={contenido} onChange={setContenido} minHeight={360} stickyTop={64} />
+            <LegioEditor content={contenido} onChange={setContenido} minHeight={360} stickyTop={76} />
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button style={S.btn("primary")} onClick={save}>Guardar</button>
