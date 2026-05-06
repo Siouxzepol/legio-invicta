@@ -538,7 +538,7 @@ function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMi
       {tab === "rangos"         && <TabRangos roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} />}
       {tab === "especialidades" && <TabEspecialidades especialidades={especialidades} isJefe={isJefe} canDo={canDo} />}
       {tab === "bajas"          && <TabBajas />}
-      {tab === "orbat"          && <TabOrbat unidades={orbatUnidades} miembros={orbatMiembros} isJefe={isJefe} canDo={canDo} roles={roles} />}
+      {tab === "orbat"          && <TabOrbat unidades={orbatUnidades} miembros={orbatMiembros} isJefe={isJefe} canDo={canDo} roles={roles} especialidades={especialidades} />}
       {tab === "doctrina"       && <TabDoctrina docs={doctrina} member={member} isJefe={isJefe} canDo={canDo} />}
     </div>
   );
@@ -813,7 +813,7 @@ function TabBajas() {
 /* ─────────────────────────────────────── */
 /*  TAB ORBAT (ADMIN)                      */
 /* ─────────────────────────────────────── */
-function TabOrbat({ unidades, miembros, isJefe, canDo, roles }) {
+function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) {
   const allMembers    = useCollection("members");
   const activeMembers = allMembers.filter(m => m.accessStatus === "activo");
 
@@ -962,8 +962,13 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles }) {
               </select>
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={S.label}>Cargo / Rol táctico</label>
-              <input style={S.input} value={mCargo} onChange={e => setMCargo(e.target.value)} placeholder="Ej: Centurión, Optio, Miles…" />
+              <label style={S.label}>Especialidad</label>
+              <select style={S.input} value={mCargo} onChange={e => setMCargo(e.target.value)}>
+                <option value="">— Sin especialidad —</option>
+                {especialidades.map(e => (
+                  <option key={e._id} value={e.nombre}>{e.nombre}</option>
+                ))}
+              </select>
             </div>
             <div style={{ marginBottom: 16 }}>
               <label style={S.label}>Unidad</label>
