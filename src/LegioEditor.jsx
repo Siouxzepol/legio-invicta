@@ -41,11 +41,12 @@ export default function LegioEditor({ content, onChange, minHeight = 320, sticky
   if (!editor) return null;
 
   return (
-    <div style={{ border: `1px solid ${C.border}`, borderRadius: 4, overflow: "hidden" }}>
+    <div style={{ border: `1px solid ${C.border}`, borderRadius: 4 }}>
       {/* Toolbar sticky */}
       <div style={{
         position: "sticky", top: stickyTop, zIndex: 10,
         background: "#1a0505", borderBottom: `1px solid ${C.border}`,
+        borderRadius: "4px 4px 0 0",
         padding: "6px 10px", display: "flex", flexWrap: "wrap", gap: 4,
       }}>
         <button style={btnStyle(editor.isActive("bold"))} onMouseDown={e => { e.preventDefault(); editor.chain().focus().toggleBold().run(); }}>B</button>
@@ -79,10 +80,10 @@ export default function LegioEditor({ content, onChange, minHeight = 320, sticky
       </div>
 
       {/* Editor area */}
-      <EditorContent editor={editor} style={{ minHeight, padding: "12px 16px", background: "#1a0505" }} />
+      <EditorContent editor={editor} style={{ padding: "12px 16px", background: "#1a0505", borderRadius: "0 0 4px 4px" }} />
 
       <style>{`
-        .ProseMirror { outline: none; color: ${C.text}; font-size: 14px; line-height: 1.7; font-family: 'Inter', sans-serif; }
+        .ProseMirror { outline: none; color: ${C.text}; font-size: 14px; line-height: 1.7; font-family: 'Inter', sans-serif; min-height: ${minHeight}px; }
         .ProseMirror h1 { font-family: 'Oswald', sans-serif; font-size: 22px; color: ${C.accent}; letter-spacing: 2px; margin: 16px 0 8px; text-transform: uppercase; }
         .ProseMirror h2 { font-family: 'Oswald', sans-serif; font-size: 18px; color: ${C.accent}; letter-spacing: 1px; margin: 14px 0 6px; }
         .ProseMirror h3 { font-family: 'Oswald', sans-serif; font-size: 15px; color: ${C.text}; margin: 12px 0 4px; }
