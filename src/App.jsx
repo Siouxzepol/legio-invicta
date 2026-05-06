@@ -242,7 +242,7 @@ export default function App() {
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 16px" }}>
         {view === "inicio"    && <InicioView member={member} roles={roles} />}
-        {view === "orbat"     && <OrbatView unidades={orbatUnidades} miembros={orbatMiembros} />}
+        {view === "orbat"     && <OrbatView unidades={orbatUnidades} miembros={orbatMiembros} roles={roles} />}
         {view === "doctrina"  && <DoctrinaView docs={doctrina} member={member} isJefe={isJefe} canDo={canDo} />}
         {view === "miembros"  && <MiembrosView roles={roles} canDo={canDo} isJefe={isJefe} />}
         {view === "admin"     && <AdminPanel roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} canDo={canDo} orbatUnidades={orbatUnidades} orbatMiembros={orbatMiembros} doctrina={doctrina} member={member} />}
@@ -537,7 +537,7 @@ function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMi
       {tab === "rangos"      && <TabRangos roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} />}
       {tab === "legionarios" && <TabLegionarios roles={roles} />}
       {tab === "bajas"       && <TabBajas />}
-      {tab === "orbat"       && <TabOrbat unidades={orbatUnidades} miembros={orbatMiembros} isJefe={isJefe} canDo={canDo} />}
+      {tab === "orbat"       && <TabOrbat unidades={orbatUnidades} miembros={orbatMiembros} isJefe={isJefe} canDo={canDo} roles={roles} />}
       {tab === "doctrina"    && <TabDoctrina docs={doctrina} member={member} isJefe={isJefe} canDo={canDo} />}
     </div>
   );
@@ -805,19 +805,28 @@ function TabBajas() {
 /* ─────────────────────────────────────── */
 /*  TAB ORBAT (ADMIN)                      */
 /* ─────────────────────────────────────── */
-function TabOrbat({ unidades, miembros, isJefe, canDo }) {
+function TabOrbat({ unidades, miembros, isJefe, canDo, roles }) {
+  const allMembers    = useCollection("members");
+  const activeMembers = allMembers.filter(m => m.accessStatus === "activo");
+
   const [uNombre, setUNombre] = useState("");
   const [uColor,  setUColor]  = useState("#C9A24A");
   const [editUId, setEditUId] = useState(null);
 
-  const [mNombre,   setMNombre]   = useState("");
-  const [mHandle,   setMHandle]   = useState("");
+  const [mMemberId, setMMemberId] = useState("");
   const [mCargo,    setMCargo]    = useState("");
   const [mUnidadId, setMUnidadId] = useState("");
   const [editMId,   setEditMId]   = useState(null);
 
   const canEdit = isJefe || canDo("manage_orbat");
   const sorted  = [...unidades].sort((a, b) => (a.orden || 0) - (b.orden || 0));
+
+  const getMemberRoles = (memberId) => {
+    if (!memberId) return [];
+    const mem = allMembers.find(m => m._id === memberId);
+    if (!mem) return [];
+    return roles.filter(r => getMemberRoleIds(mem).includes(r._id));
+  };
 
   const saveUnidad = async () => {
     if (!uNombre.trim()) return;
@@ -852,8 +861,15 @@ function TabOrbat({ unidades, miembros, isJefe, canDo }) {
   };
 
   const saveMiembro = async () => {
-    if (!mNombre.trim() || !mUnidadId) return;
-    const data = { nombre: mNombre.trim(), handle: mHandle.trim(), cargo: mCargo.trim(), unidadId: mUnidadId };
+    if (!mMemberId || !mUnidadId) return;
+    const mem = allMembers.find(m => m._id === mMemberId);
+    const data = {
+      memberId: mMemberId,
+      nombre:   mem?.displayName || mem?.handle || "",
+      handle:   mem?.handle || "",
+      cargo:    mCargo.trim(),
+      unidadId: mUnidadId,
+    };
     if (editMId) {
       await fbUpd("orbat_miembros", editMId, data);
       setEditMId(null);
@@ -861,7 +877,7 @@ function TabOrbat({ unidades, miembros, isJefe, canDo }) {
       const maxOrden = miembros.filter(m => m.unidadId === mUnidadId).reduce((mx, m) => Math.max(mx, m.orden || 0), 0);
       await fbAdd("orbat_miembros", { ...data, orden: maxOrden + 1 });
     }
-    setMNombre(""); setMHandle(""); setMCargo(""); setMUnidadId("");
+    setMMemberId(""); setMCargo(""); setMUnidadId("");
   };
 
   const delMiembro = async m => {
@@ -927,12 +943,15 @@ function TabOrbat({ unidades, miembros, isJefe, canDo }) {
           <div style={{ ...S.card, marginBottom: 16 }}>
             <h3 style={S.h3}>{editMId ? "Editar efectivo" : "Añadir al ORBAT"}</h3>
             <div style={{ marginBottom: 12 }}>
-              <label style={S.label}>Nombre</label>
-              <input style={S.input} value={mNombre} onChange={e => setMNombre(e.target.value)} placeholder="Nombre completo" />
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={S.label}>Handle</label>
-              <input style={S.input} value={mHandle} onChange={e => setMHandle(e.target.value)} placeholder="handle_juego" />
+              <label style={S.label}>Legionario</label>
+              <select style={S.input} value={mMemberId} onChange={e => setMMemberId(e.target.value)}>
+                <option value="">— Seleccionar legionario —</option>
+                {activeMembers.map(m => (
+                  <option key={m._id} value={m._id}>
+                    @{m.handle}{m.displayName && m.displayName !== m.handle ? ` — ${m.displayName}` : ""}
+                  </option>
+                ))}
+              </select>
             </div>
             <div style={{ marginBottom: 12 }}>
               <label style={S.label}>Cargo / Rol táctico</label>
@@ -948,7 +967,7 @@ function TabOrbat({ unidades, miembros, isJefe, canDo }) {
             <div style={{ display: "flex", gap: 8 }}>
               <button style={S.btn("primary")} onClick={saveMiembro}>{editMId ? "Guardar" : "Añadir"}</button>
               {editMId && (
-                <button style={S.btn("ghost")} onClick={() => { setEditMId(null); setMNombre(""); setMHandle(""); setMCargo(""); setMUnidadId(""); }}>
+                <button style={S.btn("ghost")} onClick={() => { setEditMId(null); setMMemberId(""); setMCargo(""); setMUnidadId(""); }}>
                   Cancelar
                 </button>
               )}
@@ -971,12 +990,17 @@ function TabOrbat({ unidades, miembros, isJefe, canDo }) {
                     <div style={{ flex: 1 }}>
                       <span style={{ fontSize: 13 }}>{m.nombre}</span>
                       {m.handle && <span style={{ color: C.muted, fontSize: 11, marginLeft: 8, fontFamily: "'Share Tech Mono', monospace" }}>@{m.handle}</span>}
-                      {m.cargo && <span style={{ ...S.badge(C.accentDim), marginLeft: 8 }}>{m.cargo}</span>}
+                      <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 4 }}>
+                        {m.cargo && <span style={S.badge(C.accentDim)}>{m.cargo}</span>}
+                        {getMemberRoles(m.memberId).map(r => (
+                          <span key={r._id} style={S.badge(C.accent)}>{r.name}</span>
+                        ))}
+                      </div>
                     </div>
                     {canEdit && (
                       <>
                         <button style={{ ...S.btn("ghost"), padding: "3px 7px", fontSize: 11 }}
-                          onClick={() => { setEditMId(m._id); setMNombre(m.nombre); setMHandle(m.handle || ""); setMCargo(m.cargo || ""); setMUnidadId(m.unidadId); }}>✎</button>
+                          onClick={() => { setEditMId(m._id); setMMemberId(m.memberId || ""); setMCargo(m.cargo || ""); setMUnidadId(m.unidadId); }}>✎</button>
                         <button style={{ ...S.btn("danger"), padding: "3px 7px", fontSize: 11 }} onClick={() => delMiembro(m)}>✕</button>
                       </>
                     )}
@@ -995,8 +1019,16 @@ function TabOrbat({ unidades, miembros, isJefe, canDo }) {
 /* ─────────────────────────────────────── */
 /*  VISTA PÚBLICA ORBAT                    */
 /* ─────────────────────────────────────── */
-function OrbatView({ unidades, miembros }) {
+function OrbatView({ unidades, miembros, roles }) {
+  const allMembers = useCollection("members");
   const sorted = [...unidades].sort((a, b) => (a.orden || 0) - (b.orden || 0));
+
+  const getMemberRoles = (memberId) => {
+    if (!memberId) return [];
+    const mem = allMembers.find(m => m._id === memberId);
+    if (!mem) return [];
+    return roles.filter(r => getMemberRoleIds(mem).includes(r._id));
+  };
 
   return (
     <div>
@@ -1026,7 +1058,12 @@ function OrbatView({ unidades, miembros }) {
                         @{m.handle}
                       </div>
                     )}
-                    {m.cargo && <span style={S.badge(C.accentDim)}>{m.cargo}</span>}
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                      {m.cargo && <span style={S.badge(C.accentDim)}>{m.cargo}</span>}
+                      {getMemberRoles(m.memberId).map(r => (
+                        <span key={r._id} style={S.badge(C.accent)}>{r.name}</span>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
