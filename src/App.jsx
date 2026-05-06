@@ -40,27 +40,27 @@ const S = {
     fontFamily: "'Inter', sans-serif", fontSize: 15,
   },
   nav: {
-    position: "sticky", top: 0, zIndex: 100, height: 76,
+    position: "sticky", top: 0, zIndex: 100, height: 96,
     background: "rgba(42,10,10,0.97)", borderBottom: `1px solid ${C.border}`,
     backdropFilter: "blur(10px)",
-    display: "flex", alignItems: "center", padding: "0 32px", gap: 32,
+    display: "flex", alignItems: "center", padding: "0 40px", gap: 40,
   },
   navLogo: {
-    display: "flex", alignItems: "center", gap: 14, marginRight: "auto",
+    display: "flex", alignItems: "center", gap: 16, marginRight: "auto",
   },
   navLogoText: {
-    fontFamily: "'Oswald', sans-serif", fontSize: 24, fontWeight: 700,
-    color: C.accent, letterSpacing: 4, lineHeight: 1,
+    fontFamily: "'Oswald', sans-serif", fontSize: 30, fontWeight: 700,
+    color: C.accent, letterSpacing: 5, lineHeight: 1,
   },
   navLogoSub: {
-    fontFamily: "'Share Tech Mono', monospace", fontSize: 10,
-    color: C.muted, letterSpacing: 3, display: "block",
+    fontFamily: "'Share Tech Mono', monospace", fontSize: 11,
+    color: C.muted, letterSpacing: 4, display: "block",
   },
   navItem: (active) => ({
-    fontFamily: "'Oswald', sans-serif", fontSize: 15, letterSpacing: 2,
+    fontFamily: "'Oswald', sans-serif", fontSize: 17, letterSpacing: 3,
     color: active ? C.accent : C.muted, cursor: "pointer",
-    borderBottom: active ? `2px solid ${C.accent}` : "2px solid transparent",
-    paddingBottom: 3, textTransform: "uppercase",
+    borderBottom: active ? `3px solid ${C.accent}` : "3px solid transparent",
+    paddingBottom: 4, textTransform: "uppercase",
   }),
   card: {
     background: C.surface, border: `1px solid ${C.border}`,
@@ -225,7 +225,7 @@ export default function App() {
     <div style={S.page}>
       <nav style={S.nav}>
         <div style={S.navLogo}>
-          <img src="/logo.png" alt="Legio Invicta" style={{ height: 52, width: 52, borderRadius: "50%", border: `1px solid ${C.border}` }} />
+          <img src="/logo.png" alt="Legio Invicta" style={{ height: 64, width: 64, borderRadius: "50%", border: `1px solid ${C.border}` }} />
           <div>
             <span style={S.navLogoText}>LEGIO INVICTA</span>
             <span style={S.navLogoSub}>HONOR Y VICTORIA</span>
@@ -1134,7 +1134,7 @@ function TabDoctrina({ docs, member, isJefe, canDo }) {
           </div>
           <div style={{ marginBottom: 16 }}>
             <label style={{ ...S.label, marginBottom: 8 }}>Contenido</label>
-            <LegioEditor content={contenido} onChange={setContenido} minHeight={360} stickyTop={76} />
+            <LegioEditor content={contenido} onChange={setContenido} minHeight={360} stickyTop={96} />
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button style={S.btn("primary")} onClick={save}>Guardar</button>
