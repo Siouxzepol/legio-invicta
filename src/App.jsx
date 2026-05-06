@@ -1360,11 +1360,10 @@ function TabEspecialidades({ especialidades, isJefe, canDo }) {
 /*  VISTA PÚBLICA ESPECIALIDADES           */
 /* ─────────────────────────────────────── */
 function EspecialidadesView({ especialidades }) {
-  const allMembers = useCollection("members");
-  const active     = allMembers.filter(m => m.accessStatus === "activo");
+  const orbatMiembros = useCollection("orbat_miembros");
 
-  const getMembersWithEsp = (espId) =>
-    active.filter(m => (m.especialidadIds || []).includes(espId));
+  const getEfectivosWithEsp = (espId) =>
+    orbatMiembros.filter(m => (m.espIds || []).includes(espId));
 
   return (
     <div>
@@ -1374,28 +1373,28 @@ function EspecialidadesView({ especialidades }) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
           {especialidades.map(e => {
-            const members = getMembersWithEsp(e._id);
-            const color   = e.color || C.accent;
+            const efectivos = getEfectivosWithEsp(e._id);
+            const color     = e.color || C.accent;
             return (
               <div key={e._id}>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, borderLeft: `4px solid ${color}`, paddingLeft: 16, marginBottom: 12 }}>
                   <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 17, color, letterSpacing: 3, textTransform: "uppercase" }}>
                     {e.nombre}
                   </span>
-                  <span style={S.badge(color)}>{members.length} efectivos</span>
+                  <span style={S.badge(color)}>{efectivos.length} efectivos</span>
                 </div>
                 {e.descripcion && (
                   <p style={{ color: C.muted, fontSize: 13, paddingLeft: 20, marginBottom: 12 }}>{e.descripcion}</p>
                 )}
-                {members.length === 0 ? (
-                  <p style={{ color: C.muted, paddingLeft: 20, fontSize: 13 }}>Sin efectivos asignados.</p>
+                {efectivos.length === 0 ? (
+                  <p style={{ color: C.muted, paddingLeft: 20, fontSize: 13 }}>Sin efectivos asignados en el ORBAT.</p>
                 ) : (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingLeft: 20 }}>
-                    {members.map(m => (
+                    {efectivos.map(m => (
                       <div key={m._id} style={{ ...S.card, padding: "8px 14px", borderLeft: `2px solid ${color}55`, display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color }}> @{m.handle}</span>
-                        {m.displayName && m.displayName !== m.handle && (
-                          <span style={{ fontSize: 13 }}>{m.displayName}</span>
+                        <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color }}>@{m.handle}</span>
+                        {m.nombre && m.nombre !== m.handle && (
+                          <span style={{ fontSize: 13 }}>{m.nombre}</span>
                         )}
                       </div>
                     ))}
