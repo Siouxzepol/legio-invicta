@@ -149,10 +149,11 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [view, setView]     = useState("inicio");
 
-  const roles         = useCollection("roles");
-  const orbatUnidades = useCollection("orbat_unidades", orderBy("orden"));
-  const orbatMiembros = useCollection("orbat_miembros");
-  const doctrina      = useCollection("doctrina", orderBy("createdAt", "desc"));
+  const roles           = useCollection("roles");
+  const orbatUnidades   = useCollection("orbat_unidades", orderBy("orden"));
+  const orbatMiembros   = useCollection("orbat_miembros");
+  const doctrina        = useCollection("doctrina", orderBy("createdAt", "desc"));
+  const especialidades  = useCollection("especialidades", orderBy("nombre"));
 
   /* Auth listener */
   useEffect(() => {
@@ -211,10 +212,10 @@ export default function App() {
   if (member.accessStatus === "expulsado") return <ExpelledScreen member={member} />;
 
   const navItems = [
-    { id: "inicio",    label: "Inicio" },
-    { id: "orbat",     label: "ORBAT" },
-    { id: "doctrina",  label: "Doctrina" },
-    { id: "miembros",  label: "Legionarios" },
+    { id: "inicio",          label: "Inicio" },
+    { id: "orbat",           label: "ORBAT" },
+    { id: "especialidades",  label: "Especialidades" },
+    { id: "doctrina",        label: "Doctrina" },
     ...(isJefe || canDo("approve_requests") || canDo("manage_roles") || canDo("manage_members") || canDo("manage_orbat") || canDo("manage_doctrina")
       ? [{ id: "admin", label: "Mando" }]
       : []),
@@ -241,11 +242,11 @@ export default function App() {
       </nav>
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 16px" }}>
-        {view === "inicio"    && <InicioView member={member} roles={roles} />}
-        {view === "orbat"     && <OrbatView unidades={orbatUnidades} miembros={orbatMiembros} roles={roles} />}
-        {view === "doctrina"  && <DoctrinaView docs={doctrina} member={member} isJefe={isJefe} canDo={canDo} />}
-        {view === "miembros"  && <MiembrosView roles={roles} canDo={canDo} isJefe={isJefe} />}
-        {view === "admin"     && <AdminPanel roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} canDo={canDo} orbatUnidades={orbatUnidades} orbatMiembros={orbatMiembros} doctrina={doctrina} member={member} />}
+        {view === "inicio"         && <InicioView member={member} roles={roles} />}
+        {view === "orbat"          && <OrbatView unidades={orbatUnidades} miembros={orbatMiembros} roles={roles} />}
+        {view === "especialidades" && <EspecialidadesView especialidades={especialidades} />}
+        {view === "doctrina"       && <DoctrinaView docs={doctrina} member={member} isJefe={isJefe} canDo={canDo} />}
+        {view === "admin"          && <AdminPanel roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} canDo={canDo} orbatUnidades={orbatUnidades} orbatMiembros={orbatMiembros} doctrina={doctrina} member={member} especialidades={especialidades} />}
       </div>
     </div>
   );
@@ -504,16 +505,16 @@ function MiembrosView({ roles, canDo, isJefe }) {
 /* ─────────────────────────────────────── */
 /*  PANEL ADMIN (MANDO)                    */
 /* ─────────────────────────────────────── */
-function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMiembros, doctrina, member }) {
+function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMiembros, doctrina, member, especialidades }) {
   const [tab, setTab] = useState("solicitudes");
 
   const tabs = [
-    { id: "solicitudes", label: "Solicitudes",  show: isJefe || canDo("approve_requests") },
-    { id: "rangos",      label: "Rangos",        show: isJefe || canDo("manage_roles") },
-    { id: "legionarios", label: "Legionarios",   show: isJefe || canDo("manage_members") },
-    { id: "bajas",       label: "Bajas",         show: isJefe || canDo("manage_members") },
-    { id: "orbat",       label: "ORBAT",         show: isJefe || canDo("manage_orbat") },
-    { id: "doctrina",    label: "Doctrina",      show: isJefe || canDo("manage_doctrina") },
+    { id: "solicitudes",    label: "Solicitudes",    show: isJefe || canDo("approve_requests") },
+    { id: "rangos",         label: "Rangos",          show: isJefe || canDo("manage_roles") },
+    { id: "especialidades", label: "Especialidades",  show: isJefe || canDo("manage_roles") },
+    { id: "bajas",          label: "Bajas",           show: isJefe || canDo("manage_members") },
+    { id: "orbat",          label: "ORBAT",           show: isJefe || canDo("manage_orbat") },
+    { id: "doctrina",       label: "Doctrina",        show: isJefe || canDo("manage_doctrina") },
   ].filter(t => t.show);
 
   return (
@@ -533,12 +534,12 @@ function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMi
           </button>
         ))}
       </div>
-      {tab === "solicitudes" && <TabSolicitudes roles={roles} />}
-      {tab === "rangos"      && <TabRangos roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} />}
-      {tab === "legionarios" && <TabLegionarios roles={roles} />}
-      {tab === "bajas"       && <TabBajas />}
-      {tab === "orbat"       && <TabOrbat unidades={orbatUnidades} miembros={orbatMiembros} isJefe={isJefe} canDo={canDo} roles={roles} />}
-      {tab === "doctrina"    && <TabDoctrina docs={doctrina} member={member} isJefe={isJefe} canDo={canDo} />}
+      {tab === "solicitudes"    && <TabSolicitudes roles={roles} />}
+      {tab === "rangos"         && <TabRangos roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} />}
+      {tab === "especialidades" && <TabEspecialidades especialidades={especialidades} isJefe={isJefe} canDo={canDo} />}
+      {tab === "bajas"          && <TabBajas />}
+      {tab === "orbat"          && <TabOrbat unidades={orbatUnidades} miembros={orbatMiembros} isJefe={isJefe} canDo={canDo} roles={roles} />}
+      {tab === "doctrina"       && <TabDoctrina docs={doctrina} member={member} isJefe={isJefe} canDo={canDo} />}
     </div>
   );
 }
@@ -613,25 +614,32 @@ function TabRangos({ roles, isJefe, isSuperAdmin }) {
       {canEdit && (
         <div style={{ ...S.card, marginBottom: 24 }}>
           <h3 style={S.h3}>{editId ? "Editar rango" : "Nuevo rango"}</h3>
-          <div style={{ marginBottom: 12 }}>
-            <label style={S.label}>Nombre del rango</label>
-            <input style={{ ...S.input, maxWidth: 300 }} value={name}
-              onChange={e => setName(e.target.value)} placeholder="Ej: Centurión" />
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <label style={S.label}>Permisos</label>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
-              {ALL_PERMS.map(p => (
-                <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }}>
-                  <input type="checkbox" checked={perms.includes(p.id)} onChange={() => togglePerm(p.id)} />
-                  {p.label}
-                </label>
-              ))}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+            {/* Izquierda: nombre + botones */}
+            <div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={S.label}>Nombre del rango</label>
+                <input style={S.input} value={name}
+                  onChange={e => setName(e.target.value)} placeholder="Ej: Centurión" />
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button style={S.btn("primary")} onClick={save}>{editId ? "Guardar" : "Crear rango"}</button>
+                {editId && <button style={S.btn("ghost")} onClick={() => { setEditId(null); setName(""); setPerms([]); }}>Cancelar</button>}
+              </div>
             </div>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button style={S.btn("primary")} onClick={save}>{editId ? "Guardar" : "Crear rango"}</button>
-            {editId && <button style={S.btn("ghost")} onClick={() => { setEditId(null); setName(""); setPerms([]); }}>Cancelar</button>}
+            {/* Derecha: permisos en lista vertical */}
+            <div>
+              <label style={S.label}>Permisos</label>
+              <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                {ALL_PERMS.map(p => (
+                  <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "4px 0", borderBottom: `1px solid ${C.border}20` }}>
+                    <input type="checkbox" checked={perms.includes(p.id)} onChange={() => togglePerm(p.id)}
+                      style={{ accentColor: C.accent, width: 14, height: 14, cursor: "pointer" }} />
+                    <span style={{ fontSize: 13, color: perms.includes(p.id) ? C.text : C.muted }}>{p.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1232,6 +1240,207 @@ function DoctrinaView({ docs, member, isJefe, canDo }) {
               )}
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────── */
+/*  TAB ESPECIALIDADES (ADMIN)             */
+/* ─────────────────────────────────────── */
+function TabEspecialidades({ especialidades, isJefe, canDo }) {
+  const allMembers    = useCollection("members");
+  const activeMembers = allMembers.filter(m => m.accessStatus === "activo");
+
+  const [nombre,    setNombre]    = useState("");
+  const [descripcion, setDesc]    = useState("");
+  const [color,     setColor]     = useState("#C9A24A");
+  const [editId,    setEditId]    = useState(null);
+
+  const canEdit = isJefe || canDo("manage_roles");
+
+  const save = async () => {
+    if (!nombre.trim()) return;
+    const data = { nombre: nombre.trim(), descripcion: descripcion.trim(), color };
+    if (editId) {
+      await fbUpd("especialidades", editId, data);
+      setEditId(null);
+    } else {
+      await fbAdd("especialidades", data);
+    }
+    setNombre(""); setDesc(""); setColor("#C9A24A");
+  };
+
+  const del = async e => {
+    if (!confirm(`¿Eliminar la especialidad "${e.nombre}"?`)) return;
+    await fbDel("especialidades", e._id);
+  };
+
+  const getMembersWithEsp = (espId) =>
+    activeMembers.filter(m => (m.especialidadIds || []).includes(espId));
+
+  const toggleMember = async (m, espId) => {
+    const current = m.especialidadIds || [];
+    const updated = current.includes(espId)
+      ? current.filter(id => id !== espId)
+      : [...current, espId];
+    await fbUpd("members", m._id, { especialidadIds: updated });
+  };
+
+  const [expandedEsp, setExpandedEsp] = useState(null);
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+      {/* Izquierda — definir especialidades */}
+      <div>
+        {canEdit && (
+          <div style={{ ...S.card, marginBottom: 16 }}>
+            <h3 style={S.h3}>{editId ? "Editar especialidad" : "Nueva especialidad"}</h3>
+            <div style={{ marginBottom: 12 }}>
+              <label style={S.label}>Nombre</label>
+              <input style={S.input} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Médico de combate" />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={S.label}>Descripción</label>
+              <input style={S.input} value={descripcion} onChange={e => setDesc(e.target.value)} placeholder="Breve descripción del rol…" />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={S.label}>Color</label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="color" value={color} onChange={e => setColor(e.target.value)}
+                  style={{ width: 40, height: 32, border: "none", background: "none", cursor: "pointer" }} />
+                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: C.muted }}>{color}</span>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button style={S.btn("primary")} onClick={save}>{editId ? "Guardar" : "Crear"}</button>
+              {editId && (
+                <button style={S.btn("ghost")} onClick={() => { setEditId(null); setNombre(""); setDesc(""); setColor("#C9A24A"); }}>
+                  Cancelar
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        <div style={S.card}>
+          <h3 style={S.h3}>Especialidades ({especialidades.length})</h3>
+          {especialidades.length === 0
+            ? <p style={{ color: C.muted }}>Sin especialidades creadas.</p>
+            : especialidades.map(e => (
+              <div key={e._id} style={{ padding: "10px 0", borderBottom: `1px solid ${C.border}20` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: e.color || C.accent, flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>{e.nombre}</span>
+                  {canEdit && (
+                    <>
+                      <button style={{ ...S.btn("ghost"), padding: "3px 8px", fontSize: 11 }}
+                        onClick={() => { setEditId(e._id); setNombre(e.nombre); setDesc(e.descripcion || ""); setColor(e.color || "#C9A24A"); }}>✎</button>
+                      <button style={{ ...S.btn("danger"), padding: "3px 8px", fontSize: 11 }} onClick={() => del(e)}>✕</button>
+                    </>
+                  )}
+                </div>
+                {e.descripcion && <div style={{ color: C.muted, fontSize: 12, marginTop: 4, paddingLeft: 18 }}>{e.descripcion}</div>}
+              </div>
+            ))
+          }
+        </div>
+      </div>
+
+      {/* Derecha — asignar miembros */}
+      <div style={S.card}>
+        <h3 style={S.h3}>Asignar legionarios</h3>
+        {especialidades.length === 0
+          ? <p style={{ color: C.muted }}>Crea especialidades primero.</p>
+          : especialidades.map(e => {
+            const assigned = getMembersWithEsp(e._id);
+            const isOpen   = expandedEsp === e._id;
+            return (
+              <div key={e._id} style={{ marginBottom: 12, border: `1px solid ${C.border}`, borderRadius: 4 }}>
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", cursor: "pointer" }}
+                  onClick={() => setExpandedEsp(isOpen ? null : e._id)}
+                >
+                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: e.color || C.accent }} />
+                  <span style={{ flex: 1, fontFamily: "'Oswald', sans-serif", fontSize: 13, letterSpacing: 1 }}>{e.nombre}</span>
+                  <span style={S.badge(e.color || C.accentDim)}>{assigned.length}</span>
+                  <span style={{ color: C.muted, fontSize: 12 }}>{isOpen ? "▲" : "▼"}</span>
+                </div>
+                {isOpen && (
+                  <div style={{ padding: "0 12px 12px", borderTop: `1px solid ${C.border}` }}>
+                    {activeMembers.map(m => {
+                      const has = (m.especialidadIds || []).includes(e._id);
+                      return (
+                        <label key={m._id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", cursor: "pointer", borderBottom: `1px solid ${C.border}10` }}>
+                          <input type="checkbox" checked={has} onChange={() => toggleMember(m, e._id)}
+                            style={{ accentColor: e.color || C.accent, width: 14, height: 14, cursor: "pointer" }} />
+                          <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: C.accent }}>@{m.handle}</span>
+                          {m.displayName && m.displayName !== m.handle && (
+                            <span style={{ color: C.muted, fontSize: 12 }}>{m.displayName}</span>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        }
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────── */
+/*  VISTA PÚBLICA ESPECIALIDADES           */
+/* ─────────────────────────────────────── */
+function EspecialidadesView({ especialidades }) {
+  const allMembers = useCollection("members");
+  const active     = allMembers.filter(m => m.accessStatus === "activo");
+
+  const getMembersWithEsp = (espId) =>
+    active.filter(m => (m.especialidadIds || []).includes(espId));
+
+  return (
+    <div>
+      <h2 style={S.h2}>Especialidades</h2>
+      {especialidades.length === 0 ? (
+        <p style={{ color: C.muted }}>Sin especialidades definidas.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          {especialidades.map(e => {
+            const members = getMembersWithEsp(e._id);
+            const color   = e.color || C.accent;
+            return (
+              <div key={e._id}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, borderLeft: `4px solid ${color}`, paddingLeft: 16, marginBottom: 12 }}>
+                  <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 17, color, letterSpacing: 3, textTransform: "uppercase" }}>
+                    {e.nombre}
+                  </span>
+                  <span style={S.badge(color)}>{members.length} efectivos</span>
+                </div>
+                {e.descripcion && (
+                  <p style={{ color: C.muted, fontSize: 13, paddingLeft: 20, marginBottom: 12 }}>{e.descripcion}</p>
+                )}
+                {members.length === 0 ? (
+                  <p style={{ color: C.muted, paddingLeft: 20, fontSize: 13 }}>Sin efectivos asignados.</p>
+                ) : (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingLeft: 20 }}>
+                    {members.map(m => (
+                      <div key={m._id} style={{ ...S.card, padding: "8px 14px", borderLeft: `2px solid ${color}55`, display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color }}> @{m.handle}</span>
+                        {m.displayName && m.displayName !== m.handle && (
+                          <span style={{ fontSize: 13 }}>{m.displayName}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
