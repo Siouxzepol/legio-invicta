@@ -1274,13 +1274,10 @@ function DoctrinaView({ docs, member, isJefe, canDo }) {
 /*  TAB ESPECIALIDADES (ADMIN)             */
 /* ─────────────────────────────────────── */
 function TabEspecialidades({ especialidades, isJefe, canDo }) {
-  const allMembers    = useCollection("members");
-  const activeMembers = allMembers.filter(m => m.accessStatus === "activo");
-
-  const [nombre,    setNombre]    = useState("");
-  const [descripcion, setDesc]    = useState("");
-  const [color,     setColor]     = useState("#C9A24A");
-  const [editId,    setEditId]    = useState(null);
+  const [nombre,      setNombre] = useState("");
+  const [descripcion, setDesc]   = useState("");
+  const [color,       setColor]  = useState("#C9A24A");
+  const [editId,      setEditId] = useState(null);
 
   const canEdit = isJefe || canDo("manage_roles");
 
@@ -1301,116 +1298,58 @@ function TabEspecialidades({ especialidades, isJefe, canDo }) {
     await fbDel("especialidades", e._id);
   };
 
-  const getMembersWithEsp = (espId) =>
-    activeMembers.filter(m => (m.especialidadIds || []).includes(espId));
-
-  const toggleMember = async (m, espId) => {
-    const current = m.especialidadIds || [];
-    const updated = current.includes(espId)
-      ? current.filter(id => id !== espId)
-      : [...current, espId];
-    await fbUpd("members", m._id, { especialidadIds: updated });
-  };
-
-  const [expandedEsp, setExpandedEsp] = useState(null);
-
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-      {/* Izquierda — definir especialidades */}
-      <div>
-        {canEdit && (
-          <div style={{ ...S.card, marginBottom: 16 }}>
-            <h3 style={S.h3}>{editId ? "Editar especialidad" : "Nueva especialidad"}</h3>
-            <div style={{ marginBottom: 12 }}>
-              <label style={S.label}>Nombre</label>
-              <input style={S.input} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Médico de combate" />
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={S.label}>Descripción</label>
-              <input style={S.input} value={descripcion} onChange={e => setDesc(e.target.value)} placeholder="Breve descripción del rol…" />
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={S.label}>Color</label>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input type="color" value={color} onChange={e => setColor(e.target.value)}
-                  style={{ width: 40, height: 32, border: "none", background: "none", cursor: "pointer" }} />
-                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: C.muted }}>{color}</span>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button style={S.btn("primary")} onClick={save}>{editId ? "Guardar" : "Crear"}</button>
-              {editId && (
-                <button style={S.btn("ghost")} onClick={() => { setEditId(null); setNombre(""); setDesc(""); setColor("#C9A24A"); }}>
-                  Cancelar
-                </button>
-              )}
+    <div style={{ maxWidth: 600 }}>
+      {canEdit && (
+        <div style={{ ...S.card, marginBottom: 16 }}>
+          <h3 style={S.h3}>{editId ? "Editar especialidad" : "Nueva especialidad"}</h3>
+          <div style={{ marginBottom: 12 }}>
+            <label style={S.label}>Nombre</label>
+            <input style={S.input} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Médico de combate" />
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={S.label}>Descripción</label>
+            <input style={S.input} value={descripcion} onChange={e => setDesc(e.target.value)} placeholder="Breve descripción del rol…" />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={S.label}>Color</label>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <input type="color" value={color} onChange={e => setColor(e.target.value)}
+                style={{ width: 40, height: 32, border: "none", background: "none", cursor: "pointer" }} />
+              <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: C.muted }}>{color}</span>
             </div>
           </div>
-        )}
-
-        <div style={S.card}>
-          <h3 style={S.h3}>Especialidades ({especialidades.length})</h3>
-          {especialidades.length === 0
-            ? <p style={{ color: C.muted }}>Sin especialidades creadas.</p>
-            : especialidades.map(e => (
-              <div key={e._id} style={{ padding: "10px 0", borderBottom: `1px solid ${C.border}20` }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: e.color || C.accent, flexShrink: 0 }} />
-                  <span style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>{e.nombre}</span>
-                  {canEdit && (
-                    <>
-                      <button style={{ ...S.btn("ghost"), padding: "3px 8px", fontSize: 11 }}
-                        onClick={() => { setEditId(e._id); setNombre(e.nombre); setDesc(e.descripcion || ""); setColor(e.color || "#C9A24A"); }}>✎</button>
-                      <button style={{ ...S.btn("danger"), padding: "3px 8px", fontSize: 11 }} onClick={() => del(e)}>✕</button>
-                    </>
-                  )}
-                </div>
-                {e.descripcion && <div style={{ color: C.muted, fontSize: 12, marginTop: 4, paddingLeft: 18 }}>{e.descripcion}</div>}
-              </div>
-            ))
-          }
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={S.btn("primary")} onClick={save}>{editId ? "Guardar" : "Crear"}</button>
+            {editId && (
+              <button style={S.btn("ghost")} onClick={() => { setEditId(null); setNombre(""); setDesc(""); setColor("#C9A24A"); }}>
+                Cancelar
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Derecha — asignar miembros */}
       <div style={S.card}>
-        <h3 style={S.h3}>Asignar legionarios</h3>
+        <h3 style={S.h3}>Especialidades ({especialidades.length})</h3>
         {especialidades.length === 0
-          ? <p style={{ color: C.muted }}>Crea especialidades primero.</p>
-          : especialidades.map(e => {
-            const assigned = getMembersWithEsp(e._id);
-            const isOpen   = expandedEsp === e._id;
-            return (
-              <div key={e._id} style={{ marginBottom: 12, border: `1px solid ${C.border}`, borderRadius: 4 }}>
-                <div
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", cursor: "pointer" }}
-                  onClick={() => setExpandedEsp(isOpen ? null : e._id)}
-                >
-                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: e.color || C.accent }} />
-                  <span style={{ flex: 1, fontFamily: "'Oswald', sans-serif", fontSize: 13, letterSpacing: 1 }}>{e.nombre}</span>
-                  <span style={S.badge(e.color || C.accentDim)}>{assigned.length}</span>
-                  <span style={{ color: C.muted, fontSize: 12 }}>{isOpen ? "▲" : "▼"}</span>
-                </div>
-                {isOpen && (
-                  <div style={{ padding: "0 12px 12px", borderTop: `1px solid ${C.border}` }}>
-                    {activeMembers.map(m => {
-                      const has = (m.especialidadIds || []).includes(e._id);
-                      return (
-                        <label key={m._id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "5px 0", cursor: "pointer", borderBottom: `1px solid ${C.border}10` }}>
-                          <input type="checkbox" checked={has} onChange={() => toggleMember(m, e._id)}
-                            style={{ accentColor: e.color || C.accent, width: 14, height: 14, cursor: "pointer" }} />
-                          <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: C.accent }}>@{m.handle}</span>
-                          {m.displayName && m.displayName !== m.handle && (
-                            <span style={{ color: C.muted, fontSize: 12 }}>{m.displayName}</span>
-                          )}
-                        </label>
-                      );
-                    })}
-                  </div>
+          ? <p style={{ color: C.muted }}>Sin especialidades creadas.</p>
+          : especialidades.map(e => (
+            <div key={e._id} style={{ padding: "10px 0", borderBottom: `1px solid ${C.border}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: e.color || C.accent, flexShrink: 0 }} />
+                <span style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>{e.nombre}</span>
+                {canEdit && (
+                  <>
+                    <button style={{ ...S.btn("ghost"), padding: "3px 8px", fontSize: 11 }}
+                      onClick={() => { setEditId(e._id); setNombre(e.nombre); setDesc(e.descripcion || ""); setColor(e.color || "#C9A24A"); }}>✎</button>
+                    <button style={{ ...S.btn("danger"), padding: "3px 8px", fontSize: 11 }} onClick={() => del(e)}>✕</button>
+                  </>
                 )}
               </div>
-            );
-          })
+              {e.descripcion && <div style={{ color: C.muted, fontSize: 12, marginTop: 4, paddingLeft: 18 }}>{e.descripcion}</div>}
+            </div>
+          ))
         }
       </div>
     </div>
