@@ -243,7 +243,7 @@ export default function App() {
 
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "40px 24px" }}>
         {view === "inicio"         && <InicioView member={member} roles={roles} />}
-        {view === "orbat"          && <OrbatView unidades={orbatUnidades} miembros={orbatMiembros} roles={roles} />}
+        {view === "orbat"          && <OrbatView unidades={orbatUnidades} miembros={orbatMiembros} roles={roles} especialidades={especialidades} />}
         {view === "especialidades" && <EspecialidadesView especialidades={especialidades} />}
         {view === "doctrina"       && <DoctrinaView docs={doctrina} member={member} isJefe={isJefe} canDo={canDo} />}
         {view === "admin"          && <AdminPanel roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} canDo={canDo} orbatUnidades={orbatUnidades} orbatMiembros={orbatMiembros} doctrina={doctrina} member={member} especialidades={especialidades} />}
@@ -822,9 +822,11 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
   const [editUId, setEditUId] = useState(null);
 
   const [mMemberId, setMMemberId] = useState("");
-  const [mCargo,    setMCargo]    = useState("");
+  const [mEspIds,   setMEspIds]   = useState([]);
   const [mUnidadId, setMUnidadId] = useState("");
   const [editMId,   setEditMId]   = useState(null);
+
+  const toggleEsp = id => setMEspIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
   const canEdit = isJefe || canDo("manage_orbat");
   const sorted  = [...unidades].sort((a, b) => (a.orden || 0) - (b.orden || 0));
@@ -875,7 +877,7 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
       memberId: mMemberId,
       nombre:   mem?.displayName || mem?.handle || "",
       handle:   mem?.handle || "",
-      cargo:    mCargo.trim(),
+      espIds:   mEspIds,
       unidadId: mUnidadId,
     };
     if (editMId) {
@@ -885,7 +887,7 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
       const maxOrden = miembros.filter(m => m.unidadId === mUnidadId).reduce((mx, m) => Math.max(mx, m.orden || 0), 0);
       await fbAdd("orbat_miembros", { ...data, orden: maxOrden + 1 });
     }
-    setMMemberId(""); setMCargo(""); setMUnidadId("");
+    setMMemberId(""); setMEspIds([]); setMUnidadId("");
   };
 
   const delMiembro = async m => {
@@ -962,13 +964,22 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
               </select>
             </div>
             <div style={{ marginBottom: 12 }}>
-              <label style={S.label}>Especialidad</label>
-              <select style={S.input} value={mCargo} onChange={e => setMCargo(e.target.value)}>
-                <option value="">— Sin especialidad —</option>
-                {especialidades.map(e => (
-                  <option key={e._id} value={e.nombre}>{e.nombre}</option>
-                ))}
-              </select>
+              <label style={S.label}>Especialidades</label>
+              {especialidades.length === 0
+                ? <p style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>Crea especialidades primero.</p>
+                : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 6 }}>
+                    {especialidades.map(e => (
+                      <label key={e._id} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "4px 0", borderBottom: `1px solid ${C.border}20` }}>
+                        <input type="checkbox" checked={mEspIds.includes(e._id)} onChange={() => toggleEsp(e._id)}
+                          style={{ accentColor: e.color || C.accent, width: 14, height: 14, cursor: "pointer" }} />
+                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: e.color || C.accent }} />
+                        <span style={{ fontSize: 13, color: mEspIds.includes(e._id) ? C.text : C.muted }}>{e.nombre}</span>
+                      </label>
+                    ))}
+                  </div>
+                )
+              }
             </div>
             <div style={{ marginBottom: 16 }}>
               <label style={S.label}>Unidad</label>
@@ -980,7 +991,7 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
             <div style={{ display: "flex", gap: 8 }}>
               <button style={S.btn("primary")} onClick={saveMiembro}>{editMId ? "Guardar" : "Añadir"}</button>
               {editMId && (
-                <button style={S.btn("ghost")} onClick={() => { setEditMId(null); setMMemberId(""); setMCargo(""); setMUnidadId(""); }}>
+                <button style={S.btn("ghost")} onClick={() => { setEditMId(null); setMMemberId(""); setMEspIds([]); setMUnidadId(""); }}>
                   Cancelar
                 </button>
               )}
@@ -1004,7 +1015,10 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
                       <span style={{ fontSize: 13 }}>{m.nombre}</span>
                       {m.handle && <span style={{ color: C.muted, fontSize: 11, marginLeft: 8, fontFamily: "'Share Tech Mono', monospace" }}>@{m.handle}</span>}
                       <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 4 }}>
-                        {m.cargo && <span style={S.badge(C.accentDim)}>{m.cargo}</span>}
+                        {(m.espIds || []).map(id => {
+                          const esp = especialidades.find(e => e._id === id);
+                          return esp ? <span key={id} style={S.badge(esp.color || C.accentDim)}>{esp.nombre}</span> : null;
+                        })}
                         {getMemberRoles(m.memberId).map(r => (
                           <span key={r._id} style={S.badge(C.accent)}>{r.name}</span>
                         ))}
@@ -1013,7 +1027,7 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
                     {canEdit && (
                       <>
                         <button style={{ ...S.btn("ghost"), padding: "3px 7px", fontSize: 11 }}
-                          onClick={() => { setEditMId(m._id); setMMemberId(m.memberId || ""); setMCargo(m.cargo || ""); setMUnidadId(m.unidadId); }}>✎</button>
+                          onClick={() => { setEditMId(m._id); setMMemberId(m.memberId || ""); setMEspIds(m.espIds || []); setMUnidadId(m.unidadId); }}>✎</button>
                         <button style={{ ...S.btn("danger"), padding: "3px 7px", fontSize: 11 }} onClick={() => delMiembro(m)}>✕</button>
                       </>
                     )}
@@ -1032,7 +1046,7 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
 /* ─────────────────────────────────────── */
 /*  VISTA PÚBLICA ORBAT                    */
 /* ─────────────────────────────────────── */
-function OrbatView({ unidades, miembros, roles }) {
+function OrbatView({ unidades, miembros, roles, especialidades }) {
   const allMembers = useCollection("members");
   const sorted = [...unidades].sort((a, b) => (a.orden || 0) - (b.orden || 0));
 
@@ -1072,7 +1086,10 @@ function OrbatView({ unidades, miembros, roles }) {
                       </div>
                     )}
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                      {m.cargo && <span style={S.badge(C.accentDim)}>{m.cargo}</span>}
+                      {(m.espIds || []).map(id => {
+                        const esp = especialidades.find(e => e._id === id);
+                        return esp ? <span key={id} style={S.badge(esp.color || C.accentDim)}>{esp.nombre}</span> : null;
+                      })}
                       {getMemberRoles(m.memberId).map(r => (
                         <span key={r._id} style={S.badge(C.accent)}>{r.name}</span>
                       ))}
