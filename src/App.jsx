@@ -3498,13 +3498,11 @@ function EspecialidadDetalleView({ espId, member, isJefe, canDo, especialidades 
     <div>
       {/* Hero */}
       <div style={{
-        position: "relative", width: "100%",
-        borderRadius: 10, overflow: "hidden", marginBottom: 32,
-        background: "#0a0a0c",
+        width: "100%", marginBottom: 32, textAlign: "center",
       }}>
         {esp.portadaUrl
           ? <img src={esp.portadaUrl} alt={esp.nombre}
-              style={{ display: "block", width: "100%", height: "auto", maxHeight: 700, objectFit: "contain" }} />
+              style={{ display: "block", width: "auto", maxWidth: "100%", height: "auto", maxHeight: 700, margin: "0 auto" }} />
           : <div style={{ height: 400, background: `linear-gradient(135deg, ${esp.color || C.red}33, ${C.bg})` }} />
         }
       </div>
