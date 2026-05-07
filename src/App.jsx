@@ -3499,31 +3499,29 @@ function EspecialidadDetalleView({ espId, member, isJefe, canDo, especialidades 
       {/* Hero */}
       <div style={{
         position: "relative", width: "100%",
-        height: "calc(100vh - 96px - 80px)",
-        minHeight: 400, maxHeight: 700,
         borderRadius: 10, overflow: "hidden", marginBottom: 32,
+        background: "#0a0a0c",
       }}>
         {esp.portadaUrl
           ? <img src={esp.portadaUrl} alt={esp.nombre}
-              style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.55)" }} />
-          : <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${esp.color || C.red}33, ${C.bg})` }} />
+              style={{ display: "block", width: "100%", height: "auto", maxHeight: 700, objectFit: "contain" }} />
+          : <div style={{ height: 400, background: `linear-gradient(135deg, ${esp.color || C.red}33, ${C.bg})` }} />
         }
         {/* Overlay con nombre y descripción */}
         <div style={{
           position: "absolute", inset: 0,
           display: "flex", flexDirection: "column",
-          alignItems: "center", justifyContent: "center",
-          background: "linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.6) 100%)",
+          alignItems: "center", justifyContent: "flex-end",
+          background: "linear-gradient(to bottom, rgba(0,0,0,0) 50%, rgba(0,0,0,0.75) 100%)",
           padding: "40px 60px", textAlign: "center",
         }}>
-          <div style={{ width: 12, height: 12, borderRadius: "50%", background: esp.color || C.accent, marginBottom: 16 }} />
           <h1 style={{
-            fontFamily: "'Oswald', sans-serif", fontSize: 52, fontWeight: 700,
+            fontFamily: "'Oswald', sans-serif", fontSize: 48, fontWeight: 700,
             color: C.accent, letterSpacing: 8, textTransform: "uppercase",
-            marginBottom: 16, lineHeight: 1.1,
+            marginBottom: 10, lineHeight: 1.1,
           }}>{esp.nombre}</h1>
           {esp.descripcion && (
-            <p style={{ color: "rgba(232,224,208,0.75)", fontSize: 16, maxWidth: 560, lineHeight: 1.7, marginBottom: 0 }}>
+            <p style={{ color: "rgba(232,224,208,0.8)", fontSize: 15, maxWidth: 560, lineHeight: 1.7, marginBottom: 0 }}>
               {esp.descripcion}
             </p>
           )}
