@@ -2065,8 +2065,8 @@ function HojaServicioView({ member, roles, operaciones, orbatMiembros, orbatUnid
                     )}
                   </div>
                 </div>
-                <span style={S.badge(asVal === "confirmada" ? C.green : C.danger)}>
-                  {asVal === "confirmada" ? "Asistió" : "Baja"}
+                <span style={S.badge(asVal === "confirmada" ? C.green : asVal === "duda" ? "#f59e0b" : C.danger)}>
+                  {asVal === "confirmada" ? "Asistió" : asVal === "duda" ? "Duda" : "Baja"}
                 </span>
               </div>
             );
@@ -2538,6 +2538,7 @@ function TabOperaciones({ ops, member, isJefe, canDo }) {
   };
 
   const confirmados = op => Object.values(op.asistencia || {}).filter(v => v === "confirmada").length;
+  const dudas       = op => Object.values(op.asistencia || {}).filter(v => v === "duda").length;
   const bajas       = op => Object.values(op.asistencia || {}).filter(v => v === "baja").length;
 
   return (
@@ -2595,6 +2596,7 @@ function TabOperaciones({ ops, member, isJefe, canDo }) {
                 <div style={{ display: "flex", gap: 12, color: C.muted, fontSize: 12, flexWrap: "wrap" }}>
                   {op.fecha && <span>{new Date(op.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}</span>}
                   <span>Confirmados: <span style={{ color: C.green }}>{confirmados(op)}</span></span>
+                  <span>Dudas: <span style={{ color: "#f59e0b" }}>{dudas(op)}</span></span>
                   <span>Bajas: <span style={{ color: C.danger }}>{bajas(op)}</span></span>
                   {op.autor && <span>@{op.autor}</span>}
                 </div>
@@ -2753,6 +2755,7 @@ function CalendarioView({ ops, member }) {
             const myVal  = selOp.asistencia?.[member._id] || null;
             const conf   = Object.values(selOp.asistencia || {}).filter(v => v === "confirmada").length;
             const bajasN = Object.values(selOp.asistencia || {}).filter(v => v === "baja").length;
+            const dudasN = Object.values(selOp.asistencia || {}).filter(v => v === "duda").length;
 
             const AsBtn = ({ valor, label, color }) => (
               <button onClick={() => setAsistencia(selOp, myVal === valor ? null : valor)}
@@ -2789,16 +2792,18 @@ function CalendarioView({ ops, member }) {
 
                 <div style={{ display: "flex", gap: 20, marginBottom: 16 }}>
                   <span style={{ fontSize: 13 }}><span style={{ color: C.green, fontWeight: 700 }}>{conf}</span> <span style={{ color: C.muted }}>confirmados</span></span>
+                  <span style={{ fontSize: 13 }}><span style={{ color: "#f59e0b", fontWeight: 700 }}>{dudasN}</span> <span style={{ color: C.muted }}>dudas</span></span>
                   <span style={{ fontSize: 13 }}><span style={{ color: C.danger, fontWeight: 700 }}>{bajasN}</span> <span style={{ color: C.muted }}>bajas</span></span>
                 </div>
 
                 <div style={{ display: "flex", gap: 8 }}>
                   <AsBtn valor="confirmada" label="Confirmo asistencia" color={C.green} />
+                  <AsBtn valor="duda"       label="Tengo dudas"         color="#f59e0b" />
                   <AsBtn valor="baja"       label="Doy baja"            color={C.danger} />
                 </div>
                 {myVal && (
-                  <div style={{ fontSize: 12, color: myVal === "confirmada" ? C.green : C.danger, marginTop: 8 }}>
-                    Tu estado: {myVal === "confirmada" ? "Confirmado" : "Baja"}
+                  <div style={{ fontSize: 12, color: myVal === "confirmada" ? C.green : myVal === "duda" ? "#f59e0b" : C.danger, marginTop: 8 }}>
+                    Tu estado: {myVal === "confirmada" ? "Confirmado" : myVal === "duda" ? "Duda" : "Baja"}
                     <span style={{ color: C.muted, marginLeft: 8, cursor: "pointer" }} onClick={() => setAsistencia(selOp, null)}>
                       (cancelar)
                     </span>
@@ -2835,6 +2840,7 @@ function OperacionesView({ ops, member }) {
     const myVal   = sel.asistencia?.[member._id] || null;
     const conf    = Object.values(sel.asistencia || {}).filter(v => v === "confirmada").length;
     const bajasN  = Object.values(sel.asistencia || {}).filter(v => v === "baja").length;
+    const dudasN  = Object.values(sel.asistencia || {}).filter(v => v === "duda").length;
 
     const AsBtn = ({ valor, label, color }) => (
       <button
@@ -2883,12 +2889,17 @@ function OperacionesView({ ops, member }) {
               <span style={{ color: C.muted }}>confirmados</span>
             </span>
             <span style={{ fontSize: 13 }}>
+              <span style={{ color: "#f59e0b", fontWeight: 700, marginRight: 4 }}>{dudasN}</span>
+              <span style={{ color: C.muted }}>dudas</span>
+            </span>
+            <span style={{ fontSize: 13 }}>
               <span style={{ color: C.danger, fontWeight: 700, marginRight: 4 }}>{bajasN}</span>
               <span style={{ color: C.muted }}>bajas</span>
             </span>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
             <AsBtn valor="confirmada" label="Confirmo asistencia" color={C.green} />
+            <AsBtn valor="duda"       label="Tengo dudas"         color="#f59e0b" />
             <AsBtn valor="baja"       label="Doy baja"            color={C.danger} />
             {myVal && (
               <button style={{ ...S.btn("ghost"), padding: "8px 16px", fontSize: 13 }}
@@ -2898,8 +2909,8 @@ function OperacionesView({ ops, member }) {
             )}
           </div>
           {myVal && (
-            <div style={{ fontSize: 12, color: myVal === "confirmada" ? C.green : C.danger, marginTop: 4 }}>
-              Tu estado: {myVal === "confirmada" ? "Confirmado" : "Baja"}
+            <div style={{ fontSize: 12, color: myVal === "confirmada" ? C.green : myVal === "duda" ? "#f59e0b" : C.danger, marginTop: 4 }}>
+              Tu estado: {myVal === "confirmada" ? "Confirmado" : myVal === "duda" ? "Duda" : "Baja"}
             </div>
           )}
         </div>
