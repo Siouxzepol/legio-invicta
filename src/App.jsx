@@ -129,6 +129,8 @@ const ALL_PERMS = [
   { id: "post_sitrep",      label: "Publicar SITREP" },
   { id: "manage_orbat",     label: "Gestionar ORBAT" },
   { id: "manage_doctrina",  label: "Gestionar doctrina" },
+  { id: "forum_post",       label: "Publicar en el foro" },
+  { id: "forum_mod",        label: "Moderar el foro" },
 ];
 
 /* ── Helpers Firestore ── */
@@ -169,6 +171,7 @@ export default function App() {
   const condecoraciones = useCollection("condecoraciones", orderBy("createdAt", "desc"));
   const salaFama        = useCollection("sala_fama", orderBy("orden"));
   const salaMandos      = useCollection("sala_mandos", orderBy("orden"));
+  const foroHilos       = useCollection("foro_hilos", orderBy("createdAt", "desc"));
 
   /* Auth listener */
   useEffect(() => {
@@ -226,16 +229,7 @@ export default function App() {
   if (member.accessStatus === "rechazado") return <RejectedScreen member={member} />;
   if (member.accessStatus === "expulsado") return <ExpelledScreen member={member} />;
 
-  const navItems = [
-    { id: "inicio",         label: "Inicio" },
-    { id: "servicio",       label: "Mi Hoja" },
-    { id: "especialidades", label: "Especialidades" },
-    { id: "doctrina",       label: "Doctrina" },
-    ...(isJefe || canDo("approve_requests") || canDo("manage_roles") || canDo("manage_members") || canDo("manage_orbat") || canDo("manage_doctrina") || canDo("manage_ops")
-      ? [{ id: "admin", label: "Mando" }]
-      : []),
-  ];
-
+  const canAdmin = isJefe || canDo("approve_requests") || canDo("manage_roles") || canDo("manage_members") || canDo("manage_orbat") || canDo("manage_doctrina") || canDo("manage_ops") || canDo("forum_mod");
   const orbatActive = view === "orbat" || view === "sala_fama";
   const opsActive   = view === "operaciones" || view === "calendario";
 
@@ -249,21 +243,7 @@ export default function App() {
             <span style={S.navLogoSub}>HONOR Y VICTORIA</span>
           </div>
         </div>
-        {navItems.map(n => (
-          <span key={n.id} style={S.navItem(view === n.id)} onClick={() => setView(n.id)}>
-            {n.label}
-          </span>
-        ))}
-        <NavDropdown
-          label="Operaciones"
-          active={opsActive}
-          items={[
-            { id: "operaciones", label: "Operaciones" },
-            { id: "calendario",  label: "Calendario" },
-          ]}
-          currentView={view}
-          onSelect={setView}
-        />
+        <span style={S.navItem(view === "inicio")} onClick={() => setView("inicio")}>Inicio</span>
         <NavDropdown
           label="ORBAT"
           active={orbatActive}
@@ -274,6 +254,23 @@ export default function App() {
           currentView={view}
           onSelect={setView}
         />
+        <NavDropdown
+          label="Operaciones"
+          active={opsActive}
+          items={[
+            { id: "operaciones", label: "Operaciones" },
+            { id: "calendario",  label: "Calendario" },
+          ]}
+          currentView={view}
+          onSelect={setView}
+        />
+        <span style={S.navItem(view === "foro")} onClick={() => setView("foro")}>Foro (Beta)</span>
+        <span style={S.navItem(view === "especialidades")} onClick={() => setView("especialidades")}>Especialidades</span>
+        <span style={S.navItem(view === "doctrina")} onClick={() => setView("doctrina")}>Doctrina</span>
+        <span style={S.navItem(view === "servicio")} onClick={() => setView("servicio")}>Mi Hoja</span>
+        {canAdmin && (
+          <span style={S.navItem(view === "admin")} onClick={() => setView("admin")}>Mando</span>
+        )}
         <span style={{ ...S.navItem(false), marginLeft: 8 }} onClick={() => signOut(auth)}>
           Salir
         </span>
@@ -288,7 +285,8 @@ export default function App() {
         {view === "sala_fama"      && <SalaFamaView salaFama={salaFama} condecoraciones={condecoraciones} />}
         {view === "especialidades" && <EspecialidadesView especialidades={especialidades} />}
         {view === "doctrina"       && <DoctrinaView docs={doctrina} member={member} isJefe={isJefe} canDo={canDo} />}
-        {view === "admin"          && <AdminPanel roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} canDo={canDo} orbatUnidades={orbatUnidades} orbatMiembros={orbatMiembros} doctrina={doctrina} member={member} especialidades={especialidades} operaciones={operaciones} condecoraciones={condecoraciones} salaFama={salaFama} salaMandos={salaMandos} />}
+        {view === "foro"           && <ForoView member={member} isJefe={isJefe} canDo={canDo} hilos={foroHilos} />}
+        {view === "admin"          && <AdminPanel roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} canDo={canDo} orbatUnidades={orbatUnidades} orbatMiembros={orbatMiembros} doctrina={doctrina} member={member} especialidades={especialidades} operaciones={operaciones} condecoraciones={condecoraciones} salaFama={salaFama} salaMandos={salaMandos} foroHilos={foroHilos} />}
       </div>
     </div>
   );
@@ -832,7 +830,7 @@ function MiembrosView({ roles, canDo, isJefe }) {
 /* ─────────────────────────────────────── */
 /*  PANEL ADMIN (MANDO)                    */
 /* ─────────────────────────────────────── */
-function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMiembros, doctrina, member, especialidades, operaciones, condecoraciones, salaFama, salaMandos }) {
+function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMiembros, doctrina, member, especialidades, operaciones, condecoraciones, salaFama, salaMandos, foroHilos }) {
   const [tab, setTab] = useState("solicitudes");
 
   const tabs = [
@@ -846,6 +844,7 @@ function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMi
     { id: "sala_fama",         label: "Sala de la Fama",  show: isJefe || canDo("manage_members") },
     { id: "sala_mandos",       label: "Sala de Mandos",   show: isJefe || canDo("manage_doctrina") },
     { id: "doctrina",          label: "Doctrina",         show: isJefe || canDo("manage_doctrina") },
+    { id: "foro",              label: "Foro",             show: isJefe || canDo("forum_mod") },
   ].filter(t => t.show);
 
   return (
@@ -875,6 +874,7 @@ function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMi
       {tab === "sala_fama"       && <TabSalaFama salaFama={salaFama} condecoraciones={condecoraciones} isJefe={isJefe} canDo={canDo} />}
       {tab === "sala_mandos"     && <TabSalaMandos secciones={salaMandos} member={member} isJefe={isJefe} canDo={canDo} />}
       {tab === "doctrina"        && <TabDoctrina docs={doctrina} member={member} isJefe={isJefe} canDo={canDo} />}
+      {tab === "foro"            && <TabForo hilos={foroHilos} member={member} isJefe={isJefe} canDo={canDo} />}
     </div>
   );
 }
@@ -2979,6 +2979,310 @@ function EspecialidadesView({ especialidades }) {
                         )}
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────── */
+/*  FORO (BETA)                            */
+/* ─────────────────────────────────────── */
+const FORO_CATS = ["General", "Dudas", "Operaciones", "Doctrina", "Otros"];
+
+function ForoView({ member, isJefe, canDo, hilos }) {
+  const [hiloId, setHiloId]   = useState(null);
+  const [crear, setCrear]     = useState(false);
+  const [titulo, setTitulo]   = useState("");
+  const [contenido, setContenido] = useState("");
+  const [categoria, setCategoria] = useState(FORO_CATS[0]);
+  const [busy, setBusy]       = useState(false);
+
+  const canPost = isJefe || canDo("forum_post");
+  const canMod  = isJefe || canDo("forum_mod");
+
+  const pinned   = hilos.filter(h => h.fijado);
+  const unpinned = hilos.filter(h => !h.fijado);
+  const sorted   = [...pinned, ...unpinned];
+
+  const submitHilo = async e => {
+    e.preventDefault();
+    if (!titulo.trim() || !contenido.trim()) return;
+    setBusy(true);
+    await fbAdd("foro_hilos", {
+      titulo: titulo.trim(), contenido: contenido.trim(),
+      categoria, autorId: member._id, autorHandle: member.handle,
+      fijado: false, createdAt: serverTimestamp(),
+    });
+    setTitulo(""); setContenido(""); setCategoria(FORO_CATS[0]); setCrear(false);
+    setBusy(false);
+  };
+
+  if (hiloId) {
+    const hilo = hilos.find(h => h._id === hiloId);
+    if (!hilo) { setHiloId(null); return null; }
+    return <ForoHiloDetalle hilo={hilo} member={member} canMod={canMod} canPost={canPost} onBack={() => setHiloId(null)} />;
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+        <h2 style={{ ...S.h2, marginBottom: 0 }}>Foro <span style={{ fontSize: 13, color: C.muted, letterSpacing: 2 }}>(BETA)</span></h2>
+        {canPost && !crear && (
+          <button style={S.btn("primary")} onClick={() => setCrear(true)}>+ Nuevo hilo</button>
+        )}
+      </div>
+
+      {crear && (
+        <div style={{ ...S.card, marginBottom: 24 }}>
+          <div style={S.h3}>Nuevo hilo</div>
+          <form onSubmit={submitHilo}>
+            <div style={{ marginBottom: 12 }}>
+              <label style={S.label}>Categoría</label>
+              <select style={{ ...S.input, width: "auto" }} value={categoria} onChange={e => setCategoria(e.target.value)}>
+                {FORO_CATS.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={S.label}>Título</label>
+              <input style={S.input} value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Título del hilo" required />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={S.label}>Contenido</label>
+              <textarea style={{ ...S.input, minHeight: 100, resize: "vertical" }} value={contenido} onChange={e => setContenido(e.target.value)} placeholder="Escribe aquí..." required />
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button style={S.btn("primary")} disabled={busy}>{busy ? "…" : "Publicar"}</button>
+              <button type="button" style={S.btn("ghost")} onClick={() => setCrear(false)}>Cancelar</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {sorted.length === 0 ? (
+        <p style={{ color: C.muted }}>No hay hilos todavía. ¡Sé el primero en publicar!</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {sorted.map(h => (
+            <div key={h._id} style={{ ...S.card, cursor: "pointer", display: "flex", alignItems: "center", gap: 16, padding: "16px 20px" }}
+              onClick={() => setHiloId(h._id)}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  {h.fijado && <span style={{ ...S.badge(C.accent), fontSize: 11 }}>📌 FIJADO</span>}
+                  <span style={{ ...S.badge(C.accentDim), fontSize: 11 }}>{h.categoria}</span>
+                </div>
+                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 17, color: C.text, letterSpacing: 1 }}>{h.titulo}</div>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
+                  por <span style={{ color: C.accent, fontFamily: "'Share Tech Mono', monospace" }}>@{h.autorHandle}</span>
+                  {h.createdAt?.toDate && (
+                    <span style={{ marginLeft: 8 }}>{h.createdAt.toDate().toLocaleDateString("es-ES")}</span>
+                  )}
+                </div>
+              </div>
+              <div style={{ color: C.muted, fontSize: 13, flexShrink: 0 }}>Ver →</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ForoHiloDetalle({ hilo, member, canMod, canPost, onBack }) {
+  const respuestas = useCollection("foro_respuestas", orderBy("createdAt", "asc"));
+  const hiloResp   = respuestas.filter(r => r.hiloId === hilo._id);
+
+  const [texto, setTexto]             = useState("");
+  const [busy, setBusy]               = useState(false);
+  const [editHilo, setEditHilo]       = useState(false);
+  const [editTitulo, setEditTitulo]   = useState(hilo.titulo);
+  const [editContenido, setEditContenido] = useState(hilo.contenido);
+  const [editRespId, setEditRespId]   = useState(null);
+  const [editRespTxt, setEditRespTxt] = useState("");
+
+  const isAutorHilo = member._id === hilo.autorId;
+
+  const submitRespuesta = async e => {
+    e.preventDefault();
+    if (!texto.trim()) return;
+    setBusy(true);
+    await fbAdd("foro_respuestas", {
+      hiloId: hilo._id, contenido: texto.trim(),
+      autorId: member._id, autorHandle: member.handle,
+      createdAt: serverTimestamp(),
+    });
+    setTexto(""); setBusy(false);
+  };
+
+  const saveEditHilo = async () => {
+    await fbUpd("foro_hilos", hilo._id, { titulo: editTitulo.trim(), contenido: editContenido.trim() });
+    setEditHilo(false);
+  };
+
+  const deleteHilo = async () => {
+    if (!confirm("¿Eliminar este hilo y todas sus respuestas?")) return;
+    for (const r of hiloResp) await fbDel("foro_respuestas", r._id);
+    await fbDel("foro_hilos", hilo._id);
+    onBack();
+  };
+
+  const toggleFijar = () => fbUpd("foro_hilos", hilo._id, { fijado: !hilo.fijado });
+
+  const saveEditResp = async id => {
+    await fbUpd("foro_respuestas", id, { contenido: editRespTxt.trim() });
+    setEditRespId(null);
+  };
+
+  const deleteResp = async r => {
+    if (!confirm("¿Eliminar esta respuesta?")) return;
+    await fbDel("foro_respuestas", r._id);
+  };
+
+  return (
+    <div>
+      <button style={{ ...S.btn("ghost"), marginBottom: 20 }} onClick={onBack}>← Volver al foro</button>
+
+      <div style={{ ...S.card, marginBottom: 24 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, marginBottom: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              {hilo.fijado && <span style={{ ...S.badge(C.accent), fontSize: 11 }}>📌 FIJADO</span>}
+              <span style={{ ...S.badge(C.accentDim), fontSize: 11 }}>{hilo.categoria}</span>
+            </div>
+            {editHilo ? (
+              <input style={{ ...S.input, fontSize: 20, marginBottom: 8 }} value={editTitulo} onChange={e => setEditTitulo(e.target.value)} />
+            ) : (
+              <h2 style={{ ...S.h2, marginBottom: 4 }}>{hilo.titulo}</h2>
+            )}
+            <div style={{ fontSize: 12, color: C.muted }}>
+              por <span style={{ color: C.accent, fontFamily: "'Share Tech Mono', monospace" }}>@{hilo.autorHandle}</span>
+              {hilo.createdAt?.toDate && <span style={{ marginLeft: 8 }}>{hilo.createdAt.toDate().toLocaleDateString("es-ES")}</span>}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            {canMod && <button style={S.btn("ghost")} onClick={toggleFijar}>{hilo.fijado ? "Desfijar" : "Fijar"}</button>}
+            {(isAutorHilo || canMod) && !editHilo && <button style={S.btn("ghost")} onClick={() => setEditHilo(true)}>Editar</button>}
+            {(isAutorHilo || canMod) && <button style={S.btn("danger")} onClick={deleteHilo}>Eliminar</button>}
+          </div>
+        </div>
+
+        {editHilo ? (
+          <div>
+            <textarea style={{ ...S.input, minHeight: 100, resize: "vertical", marginBottom: 8 }} value={editContenido} onChange={e => setEditContenido(e.target.value)} />
+            <div style={{ display: "flex", gap: 8 }}>
+              <button style={S.btn("primary")} onClick={saveEditHilo}>Guardar</button>
+              <button style={S.btn("ghost")} onClick={() => setEditHilo(false)}>Cancelar</button>
+            </div>
+          </div>
+        ) : (
+          <p style={{ color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{hilo.contenido}</p>
+        )}
+      </div>
+
+      <div style={{ ...S.h3, marginBottom: 16 }}>
+        Respuestas <span style={{ color: C.muted, fontSize: 13 }}>({hiloResp.length})</span>
+      </div>
+
+      {hiloResp.length === 0 && <p style={{ color: C.muted, marginBottom: 24 }}>Sin respuestas todavía.</p>}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 24 }}>
+        {hiloResp.map(r => {
+          const isAutorResp = member._id === r.autorId;
+          return (
+            <div key={r._id} style={{ ...S.card, borderLeft: `3px solid ${C.border}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                <div style={{ fontSize: 12, color: C.muted }}>
+                  <span style={{ color: C.accent, fontFamily: "'Share Tech Mono', monospace" }}>@{r.autorHandle}</span>
+                  {r.createdAt?.toDate && <span style={{ marginLeft: 8 }}>{r.createdAt.toDate().toLocaleDateString("es-ES")}</span>}
+                </div>
+                {(isAutorResp || canMod) && editRespId !== r._id && (
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button style={{ ...S.btn("ghost"), padding: "4px 10px", fontSize: 12 }} onClick={() => { setEditRespId(r._id); setEditRespTxt(r.contenido); }}>Editar</button>
+                    <button style={{ ...S.btn("danger"), padding: "4px 10px", fontSize: 12 }} onClick={() => deleteResp(r)}>Eliminar</button>
+                  </div>
+                )}
+              </div>
+              {editRespId === r._id ? (
+                <div>
+                  <textarea style={{ ...S.input, minHeight: 80, resize: "vertical", marginBottom: 8 }} value={editRespTxt} onChange={e => setEditRespTxt(e.target.value)} />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button style={S.btn("primary")} onClick={() => saveEditResp(r._id)}>Guardar</button>
+                    <button style={S.btn("ghost")} onClick={() => setEditRespId(null)}>Cancelar</button>
+                  </div>
+                </div>
+              ) : (
+                <p style={{ color: C.text, lineHeight: 1.7, whiteSpace: "pre-wrap", margin: 0 }}>{r.contenido}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {canPost && (
+        <div style={S.card}>
+          <div style={{ ...S.h3, marginBottom: 12 }}>Responder</div>
+          <form onSubmit={submitRespuesta}>
+            <textarea style={{ ...S.input, minHeight: 90, resize: "vertical", marginBottom: 12 }} value={texto} onChange={e => setTexto(e.target.value)} placeholder="Escribe tu respuesta..." required />
+            <button style={S.btn("primary")} disabled={busy}>{busy ? "…" : "Publicar respuesta"}</button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Tab Admin: Foro (moderación) ── */
+function TabForo({ hilos, member, isJefe, canDo }) {
+  const respuestas = useCollection("foro_respuestas", orderBy("createdAt", "desc"));
+  const canMod = isJefe || canDo("forum_mod");
+
+  const deleteHilo = async h => {
+    if (!confirm(`¿Eliminar hilo "${h.titulo}" y todas sus respuestas?`)) return;
+    const hiloResp = respuestas.filter(r => r.hiloId === h._id);
+    for (const r of hiloResp) await fbDel("foro_respuestas", r._id);
+    await fbDel("foro_hilos", h._id);
+  };
+
+  const toggleFijar = h => fbUpd("foro_hilos", h._id, { fijado: !h.fijado });
+
+  return (
+    <div>
+      <h3 style={S.h3}>Moderación del Foro</h3>
+      <p style={{ color: C.muted, fontSize: 13, marginBottom: 20 }}>
+        {hilos.length} hilos · {respuestas.length} respuestas totales
+      </p>
+      {hilos.length === 0 ? (
+        <p style={{ color: C.muted }}>No hay hilos en el foro.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {hilos.map(h => {
+            const nResp = respuestas.filter(r => r.hiloId === h._id).length;
+            return (
+              <div key={h._id} style={{ ...S.card, display: "flex", alignItems: "center", gap: 16, padding: "14px 20px" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", gap: 8, marginBottom: 4 }}>
+                    {h.fijado && <span style={{ ...S.badge(C.accent), fontSize: 11 }}>📌 FIJADO</span>}
+                    <span style={{ ...S.badge(C.accentDim), fontSize: 11 }}>{h.categoria}</span>
+                  </div>
+                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, color: C.text }}>{h.titulo}</div>
+                  <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+                    <span style={{ color: C.accent, fontFamily: "'Share Tech Mono', monospace" }}>@{h.autorHandle}</span>
+                    <span style={{ marginLeft: 8 }}>{nResp} respuestas</span>
+                  </div>
+                </div>
+                {canMod && (
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                    <button style={{ ...S.btn("ghost"), padding: "6px 12px", fontSize: 12 }} onClick={() => toggleFijar(h)}>
+                      {h.fijado ? "Desfijar" : "Fijar"}
+                    </button>
+                    <button style={{ ...S.btn("danger"), padding: "6px 12px", fontSize: 12 }} onClick={() => deleteHilo(h)}>
+                      Eliminar
+                    </button>
                   </div>
                 )}
               </div>
