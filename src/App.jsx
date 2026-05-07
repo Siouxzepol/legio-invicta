@@ -715,7 +715,7 @@ function InicioView({ member, roles, operaciones, condecoraciones, orbatMiembros
           </div>
 
           {/* Derecha — próximas ops + condecoraciones apiladas */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 280, maxWidth: 360 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 280, maxWidth: 360, maxHeight: "calc(100vh - 200px)", overflowY: "auto" }}>
             {/* Próximas operaciones */}
             <div style={{
               background: "rgba(17,18,20,0.7)", backdropFilter: "blur(12px)",
