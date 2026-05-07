@@ -440,7 +440,7 @@ function LoginScreen() {
       position: "relative",
     }}>
       {/* Overlay oscuro */}
-      <div style={{ position: "absolute", inset: 0, background: "rgba(8,6,4,0.62)", backdropFilter: "blur(1px)" }} />
+      <div style={{ position: "absolute", inset: 0, background: "rgba(8,6,4,0.45)" }} />
 
       <div style={{ position: "relative", zIndex: 1, width: 380 }}>
         <div style={{ textAlign: "center", marginBottom: 28 }}>
