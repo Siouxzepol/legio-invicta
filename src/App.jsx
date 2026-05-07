@@ -122,9 +122,10 @@ const OP_ESTADOS = {
 
 /* ── Permisos disponibles ── */
 const ALL_PERMS = [
-  { id: "manage_members",   label: "Gestionar legionarios" },
-  { id: "manage_roles",     label: "Gestionar rangos" },
-  { id: "approve_requests", label: "Aprobar solicitudes" },
+  { id: "manage_members",       label: "Gestionar legionarios" },
+  { id: "manage_roles",         label: "Gestionar rangos" },
+  { id: "approve_requests",     label: "Aprobar solicitudes de registro" },
+  { id: "manage_especialidades",label: "Gestionar especialidades y formación" },
   { id: "manage_ops",       label: "Gestionar operaciones" },
   { id: "post_sitrep",      label: "Publicar SITREP" },
   { id: "manage_orbat",     label: "Gestionar ORBAT" },
@@ -230,7 +231,7 @@ export default function App() {
   if (member.accessStatus === "rechazado") return <RejectedScreen member={member} />;
   if (member.accessStatus === "expulsado") return <ExpelledScreen member={member} />;
 
-  const canAdmin = isJefe || canDo("approve_requests") || canDo("manage_roles") || canDo("manage_members") || canDo("manage_orbat") || canDo("manage_doctrina") || canDo("manage_ops") || canDo("forum_mod");
+  const canAdmin = isJefe || canDo("approve_requests") || canDo("manage_roles") || canDo("manage_members") || canDo("manage_orbat") || canDo("manage_doctrina") || canDo("manage_ops") || canDo("forum_mod") || canDo("manage_especialidades");
   const orbatActive = view === "orbat" || view === "sala_fama";
   const opsActive   = view === "operaciones" || view === "calendario";
 
@@ -850,7 +851,7 @@ function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMi
   const tabs = [
     { id: "solicitudes",    label: "Solicitudes",    show: isJefe || canDo("approve_requests") },
     { id: "rangos",         label: "Rangos",          show: isJefe || canDo("manage_roles") },
-    { id: "especialidades", label: "Especialidades",  show: isJefe || canDo("manage_roles") },
+    { id: "especialidades", label: "Especialidades",  show: isJefe || canDo("manage_especialidades") },
     { id: "bajas",          label: "Bajas",           show: isJefe || canDo("manage_members") },
     { id: "orbat",             label: "ORBAT",            show: isJefe || canDo("manage_orbat") },
     { id: "operaciones",       label: "Operaciones",      show: isJefe || canDo("manage_ops") },
@@ -951,7 +952,7 @@ function TabSolicitudes({ roles }) {
         : espAccesos.map(a => (
           <div key={a._id} style={{ ...S.card, display: "flex", alignItems: "center", gap: 16, marginBottom: 12, flexWrap: "wrap" }}>
             <div style={{ flex: 1, minWidth: 200 }}>
-              <span style={{ fontFamily: "'Share Tech Mono', monospace", color: C.accent }}>@{a.memberHandle}</span>
+              <span style={{ fontFamily: "'Share Tech Mono', monospace", color: C.accent }}>{a.memberHandle}</span>
               <span style={{ ...S.badge(C.accentDim), marginLeft: 10 }}>{a.espNombre}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1976,7 +1977,7 @@ function TabEspecialidades({ especialidades, isJefe, canDo }) {
   const [editId,      setEditId]    = useState(null);
   const [gestionando, setGestionando] = useState(null); // esp object para gestionar guías
 
-  const canEdit = isJefe || canDo("manage_roles");
+  const canEdit = isJefe || canDo("manage_especialidades");
 
   const save = async () => {
     if (!nombre.trim()) return;
@@ -3499,7 +3500,7 @@ function EspecialidadDetalleView({ espId, member, isJefe, canDo, especialidades 
 
   const espGuias    = guias.filter(g => g.espId === espId).sort((a, b) => (a.orden || 0) - (b.orden || 0));
   const miAcceso    = accesos.find(a => a.memberId === member._id && a.espId === espId);
-  const tieneAcceso = isJefe || canDo("manage_roles") || miAcceso?.estado === "aprobado";
+  const tieneAcceso = miAcceso?.estado === "aprobado";
 
   const solicitar = async () => {
     if (miAcceso) return;
