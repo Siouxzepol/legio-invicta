@@ -714,97 +714,63 @@ function InicioView({ member, roles, operaciones, condecoraciones, orbatMiembros
             </div>
           </div>
 
-          {/* Derecha — próximas operaciones */}
-          <div style={{
-            background: "rgba(17,18,20,0.7)", backdropFilter: "blur(12px)",
-            border: `1px solid rgba(201,162,74,0.15)`, borderRadius: 10,
-            padding: "20px 24px", minWidth: 280, maxWidth: 360,
-          }}>
-            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.accent, letterSpacing: 3, textTransform: "uppercase", marginBottom: 14 }}>
-              Próximas operaciones
+          {/* Derecha — próximas ops + condecoraciones apiladas */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 280, maxWidth: 360 }}>
+            {/* Próximas operaciones */}
+            <div style={{
+              background: "rgba(17,18,20,0.7)", backdropFilter: "blur(12px)",
+              border: `1px solid rgba(201,162,74,0.15)`, borderRadius: 10,
+              padding: "20px 24px",
+            }}>
+              <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.accent, letterSpacing: 3, textTransform: "uppercase", marginBottom: 14 }}>
+                Próximas operaciones
+              </div>
+              {proximas.length === 0 ? (
+                <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>Sin operaciones planificadas.</p>
+              ) : proximas.map(op => {
+                const est = OP_ESTADOS[op.estado] || OP_ESTADOS.planificada;
+                return (
+                  <div key={op._id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: `1px solid rgba(201,162,74,0.08)` }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13 }}>{op.nombre}</div>
+                      <div style={{ display: "flex", gap: 6, marginTop: 3, alignItems: "center" }}>
+                        <span style={S.badge(est.color)}>{est.label}</span>
+                        {op.fecha && <span style={{ color: C.muted, fontSize: 11 }}>{new Date(op.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            {proximas.length === 0 ? (
-              <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>Sin operaciones planificadas.</p>
-            ) : proximas.map(op => {
-              const est = OP_ESTADOS[op.estado] || OP_ESTADOS.planificada;
-              return (
-                <div key={op._id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: `1px solid rgba(201,162,74,0.08)` }}>
+            {/* Condecoraciones */}
+            <div style={{
+              background: "rgba(17,18,20,0.7)", backdropFilter: "blur(12px)",
+              border: `1px solid rgba(201,162,74,0.15)`, borderRadius: 10,
+              padding: "20px 24px",
+            }}>
+              <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.accent, letterSpacing: 3, textTransform: "uppercase", marginBottom: 14 }}>
+                Condecoraciones recientes
+              </div>
+              {ultimasDecos.length === 0 ? (
+                <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>Sin condecoraciones registradas.</p>
+              ) : ultimasDecos.map(d => (
+                <div key={d._id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: `1px solid rgba(201,162,74,0.08)` }}>
+                  <span style={{ fontSize: 16, flexShrink: 0 }}>🎖</span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13 }}>{op.nombre}</div>
-                    <div style={{ display: "flex", gap: 6, marginTop: 3, alignItems: "center" }}>
-                      <span style={S.badge(est.color)}>{est.label}</span>
-                      {op.fecha && <span style={{ color: C.muted, fontSize: 11 }}>{new Date(op.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}</span>}
+                    <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.accent }}>{d.nombre}</div>
+                    <div style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>
+                      {d.memberHandle}{d.fecha && ` · ${new Date(d.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}`}
                     </div>
                   </div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Sección inferior — cards */}
-      <div style={{ padding: "40px 56px" }}>
-        {/* Dos columnas */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>
-
-        {/* Próximas operaciones */}
-        <div style={S.card}>
-          <h3 style={{ ...S.h3, marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            Próximas operaciones
-            <span style={S.badge(C.accentDim)}>{opsPlanif.length}</span>
-          </h3>
-          {proximas.length === 0 ? (
-            <p style={{ color: C.muted, fontSize: 13 }}>Sin operaciones planificadas.</p>
-          ) : proximas.map(op => {
-            const est = OP_ESTADOS[op.estado] || OP_ESTADOS.planificada;
-            const myVal = op.asistencia?.[member._id] || null;
-            return (
-              <div key={op._id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${C.border}20` }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13 }}>{op.nombre}</div>
-                  <div style={{ display: "flex", gap: 6, marginTop: 3, alignItems: "center", flexWrap: "wrap" }}>
-                    <span style={S.badge(est.color)}>{est.label}</span>
-                    <span style={S.badge(C.accentDim)}>{op.tipo}</span>
-                    {op.fecha && (
-                      <span style={{ color: C.muted, fontSize: 11 }}>
-                        {new Date(op.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                {myVal && (
-                  <span style={S.badge(myVal === "confirmada" ? C.green : C.danger)}>
-                    {myVal === "confirmada" ? "✓" : "✗"}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Últimas condecoraciones */}
-        <div style={S.card}>
-          <h3 style={{ ...S.h3, marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            Condecoraciones recientes
-            <span style={S.badge(C.accentDim)}>{condecoraciones.length}</span>
-          </h3>
-          {ultimasDecos.length === 0 ? (
-            <p style={{ color: C.muted, fontSize: 13 }}>Sin condecoraciones registradas.</p>
-          ) : ultimasDecos.map(d => (
-            <div key={d._id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${C.border}20` }}>
-              <span style={{ fontSize: 18, flexShrink: 0 }}>🎖</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.accent }}>{d.nombre}</div>
-                <div style={{ color: C.muted, fontSize: 12, marginTop: 2 }}>
-                  @{d.memberHandle}
-                  {d.fecha && ` · ${new Date(d.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}`}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Sección inferior */}
+      <div style={{ padding: "0 56px 40px" }}>
 
       {/* Operaciones recientes completadas */}
       {opsCompletadas.length > 0 && (
