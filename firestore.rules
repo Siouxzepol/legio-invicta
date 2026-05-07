@@ -1,6 +1,11 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // handles: public read for username→email lookup on login; no client writes
+    match /handles/{handle} {
+      allow read: if true;
+      allow write: if false;
+    }
     // Members can read their own doc; authenticated users can read all members
     match /members/{uid} {
       allow read: if request.auth != null;

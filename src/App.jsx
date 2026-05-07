@@ -6,7 +6,7 @@ import {
 } from "firebase/firestore";
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  onAuthStateChanged, signOut,
+  onAuthStateChanged, signOut, sendPasswordResetEmail,
 } from "firebase/auth";
 import { db, auth } from "./firebase";
 
@@ -359,22 +359,26 @@ function Splash() {
 /*  LOGIN / REGISTRO                       */
 /* ─────────────────────────────────────── */
 function LoginScreen() {
-  const [mode, setMode]       = useState("login"); // login | register
-  const [handle, setHandle]   = useState("");
-  const [pin, setPin]         = useState("");
-  const [pin2, setPin2]       = useState("");
-  const [error, setError]     = useState("");
-  const [busy, setBusy]       = useState(false);
+  const [mode, setMode]         = useState("login"); // login | register | reset
+  const [usuario, setUsuario]   = useState("");
+  const [correo, setCorreo]     = useState("");
+  const [pin, setPin]           = useState("");
+  const [pin2, setPin2]         = useState("");
+  const [error, setError]       = useState("");
+  const [busy, setBusy]         = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
-  const toEmail = h => `${h.trim().toLowerCase()}@legio.internal`;
+  const switchMode = m => { setMode(m); setError(""); setResetSent(false); };
 
   const handleLogin = async e => {
     e.preventDefault();
     setError(""); setBusy(true);
     try {
-      await signInWithEmailAndPassword(auth, toEmail(handle), pin);
+      const snap = await getDoc(doc(db, "handles", usuario.trim().toLowerCase()));
+      if (!snap.exists()) { setError("Usuario o PIN incorrecto."); setBusy(false); return; }
+      await signInWithEmailAndPassword(auth, snap.data().email, pin);
     } catch {
-      setError("Handle o PIN incorrecto.");
+      setError("Usuario o PIN incorrecto.");
     }
     setBusy(false);
   };
@@ -384,11 +388,16 @@ function LoginScreen() {
     setError(""); setBusy(true);
     if (pin !== pin2) { setError("Los PINs no coinciden."); setBusy(false); return; }
     if (pin.length < 4) { setError("El PIN debe tener al menos 4 caracteres."); setBusy(false); return; }
+    const handleKey = usuario.trim().toLowerCase();
     try {
-      const cred = await createUserWithEmailAndPassword(auth, toEmail(handle), pin);
+      const existing = await getDoc(doc(db, "handles", handleKey));
+      if (existing.exists()) { setError("Ese usuario ya está en uso."); setBusy(false); return; }
+      const cred = await createUserWithEmailAndPassword(auth, correo.trim(), pin);
+      await setDoc(doc(db, "handles", handleKey), { email: correo.trim(), uid: cred.user.uid });
       await setDoc(doc(db, "members", cred.user.uid), {
-        handle: handle.trim(),
-        displayName: handle.trim(),
+        handle: usuario.trim(),
+        displayName: usuario.trim(),
+        email: correo.trim(),
         accessStatus: "pendiente",
         isJefe: false,
         isSuperAdmin: false,
@@ -396,8 +405,20 @@ function LoginScreen() {
         createdAt: serverTimestamp(),
       });
     } catch (err) {
-      if (err.code === "auth/email-already-in-use") setError("Ese handle ya está en uso.");
+      if (err.code === "auth/email-already-in-use") setError("Ese correo ya está en uso.");
       else setError("Error al registrar. Inténtalo de nuevo.");
+    }
+    setBusy(false);
+  };
+
+  const handleReset = async e => {
+    e.preventDefault();
+    setError(""); setBusy(true);
+    try {
+      await sendPasswordResetEmail(auth, correo.trim());
+      setResetSent(true);
+    } catch {
+      setError("No se encontró ninguna cuenta con ese correo.");
     }
     setBusy(false);
   };
@@ -418,44 +439,95 @@ function LoginScreen() {
         </div>
 
         <div style={{ ...S.card, borderColor: C.border }}>
-          <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: `1px solid ${C.border}` }}>
-            {["login", "register"].map(m => (
-              <button key={m} onClick={() => { setMode(m); setError(""); }}
-                style={{
-                  flex: 1, background: "none", border: "none",
-                  borderBottom: mode === m ? `2px solid ${C.accent}` : "2px solid transparent",
-                  color: mode === m ? C.accent : C.muted,
-                  fontFamily: "'Oswald', sans-serif", fontSize: 13, letterSpacing: 2,
-                  cursor: "pointer", padding: "0 0 10px", textTransform: "uppercase",
-                }}>
-                {m === "login" ? "Acceder" : "Solicitar Acceso"}
-              </button>
-            ))}
-          </div>
+          {mode !== "reset" && (
+            <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: `1px solid ${C.border}` }}>
+              {["login", "register"].map(m => (
+                <button key={m} onClick={() => switchMode(m)}
+                  style={{
+                    flex: 1, background: "none", border: "none",
+                    borderBottom: mode === m ? `2px solid ${C.accent}` : "2px solid transparent",
+                    color: mode === m ? C.accent : C.muted,
+                    fontFamily: "'Oswald', sans-serif", fontSize: 13, letterSpacing: 2,
+                    cursor: "pointer", padding: "0 0 10px", textTransform: "uppercase",
+                  }}>
+                  {m === "login" ? "Acceder" : "Solicitar Registro"}
+                </button>
+              ))}
+            </div>
+          )}
 
-          <form onSubmit={mode === "login" ? handleLogin : handleRegister}>
-            <div style={{ marginBottom: 16 }}>
-              <label style={S.label}>Handle</label>
-              <input style={S.input} value={handle} onChange={e => setHandle(e.target.value)}
-                placeholder="tu_handle" autoComplete="username" required />
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={S.label}>PIN</label>
-              <input style={S.input} type="password" value={pin} onChange={e => setPin(e.target.value)}
-                placeholder="••••••" autoComplete="current-password" required />
-            </div>
-            {mode === "register" && (
-              <div style={{ marginBottom: 16 }}>
-                <label style={S.label}>Confirmar PIN</label>
-                <input style={S.input} type="password" value={pin2} onChange={e => setPin2(e.target.value)}
-                  placeholder="••••••" autoComplete="new-password" required />
+          {mode === "reset" ? (
+            resetSent ? (
+              <div style={{ textAlign: "center", padding: "12px 0" }}>
+                <div style={{ color: C.green, fontSize: 14, marginBottom: 16 }}>
+                  Si existe una cuenta con ese correo, recibirás un enlace para restablecer tu PIN.
+                </div>
+                <button style={S.btn("ghost")} onClick={() => switchMode("login")}>Volver al acceso</button>
               </div>
-            )}
-            {error && <div style={{ color: C.danger, fontSize: 12, marginBottom: 12 }}>{error}</div>}
-            <button style={{ ...S.btn("primary"), width: "100%" }} disabled={busy}>
-              {busy ? "…" : mode === "login" ? "Acceder" : "Enviar Solicitud"}
-            </button>
-          </form>
+            ) : (
+              <>
+                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 16, color: C.accent, letterSpacing: 2, marginBottom: 20 }}>
+                  RECUPERAR CONTRASEÑA
+                </div>
+                <form onSubmit={handleReset}>
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={S.label}>Correo electrónico</label>
+                    <input style={S.input} type="email" value={correo} onChange={e => setCorreo(e.target.value)}
+                      placeholder="tu@correo.com" autoComplete="email" required />
+                  </div>
+                  {error && <div style={{ color: C.danger, fontSize: 12, marginBottom: 12 }}>{error}</div>}
+                  <button style={{ ...S.btn("primary"), width: "100%" }} disabled={busy}>
+                    {busy ? "…" : "Enviar enlace"}
+                  </button>
+                </form>
+                <div style={{ textAlign: "center", marginTop: 16 }}>
+                  <button onClick={() => switchMode("login")}
+                    style={{ background: "none", border: "none", color: C.muted, fontSize: 12, cursor: "pointer", letterSpacing: 1 }}>
+                    Volver al acceso
+                  </button>
+                </div>
+              </>
+            )
+          ) : (
+            <form onSubmit={mode === "login" ? handleLogin : handleRegister}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={S.label}>Usuario</label>
+                <input style={S.input} value={usuario} onChange={e => setUsuario(e.target.value)}
+                  placeholder="tu_usuario" autoComplete="username" required />
+              </div>
+              {mode === "register" && (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={S.label}>Correo electrónico</label>
+                  <input style={S.input} type="email" value={correo} onChange={e => setCorreo(e.target.value)}
+                    placeholder="tu@correo.com" autoComplete="email" required />
+                </div>
+              )}
+              <div style={{ marginBottom: mode === "register" ? 16 : 8 }}>
+                <label style={S.label}>PIN</label>
+                <input style={S.input} type="password" value={pin} onChange={e => setPin(e.target.value)}
+                  placeholder="••••••" autoComplete="current-password" required />
+              </div>
+              {mode === "register" && (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={S.label}>Confirmar PIN</label>
+                  <input style={S.input} type="password" value={pin2} onChange={e => setPin2(e.target.value)}
+                    placeholder="••••••" autoComplete="new-password" required />
+                </div>
+              )}
+              {mode === "login" && (
+                <div style={{ textAlign: "right", marginBottom: 16 }}>
+                  <button type="button" onClick={() => switchMode("reset")}
+                    style={{ background: "none", border: "none", color: C.muted, fontSize: 12, cursor: "pointer", letterSpacing: 1 }}>
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                </div>
+              )}
+              {error && <div style={{ color: C.danger, fontSize: 12, marginBottom: 12 }}>{error}</div>}
+              <button style={{ ...S.btn("primary"), width: "100%" }} disabled={busy}>
+                {busy ? "…" : mode === "login" ? "Acceder" : "Enviar Solicitud"}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>
