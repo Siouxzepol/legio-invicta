@@ -2174,9 +2174,11 @@ function HojaServicioView({ member, roles, operaciones, orbatMiembros, orbatUnid
             <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 22, marginBottom: 4 }}>
               {member.displayName || member.handle}
             </div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: C.accent, marginBottom: 10 }}>
-              @{member.handle}
-            </div>
+            {member.displayName && (
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: C.accent, marginBottom: 10 }}>
+                @{member.handle}
+              </div>
+            )}
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
               {memberRoles.map(r => <span key={r._id} style={S.badge(C.accent)}>{r.name}</span>)}
               {!memberRoles.length && <span style={{ color: C.muted, fontSize: 12 }}>Sin rango asignado</span>}
