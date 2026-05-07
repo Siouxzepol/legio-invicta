@@ -258,7 +258,7 @@ export default function App() {
           label="ORBAT"
           active={orbatActive}
           items={[
-            { id: "orbat",     label: "ORBAT" },
+            { id: "orbat",     label: "Jerarquía" },
             { id: "sala_fama", label: "Sala de la Fama" },
           ]}
           currentView={view}
