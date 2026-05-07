@@ -672,159 +672,92 @@ function InicioView({ member, roles, operaciones, condecoraciones, orbatMiembros
   const proximas     = [...opsPlanif].sort((a, b) => a.fecha > b.fecha ? 1 : -1).slice(0, 5);
   const ultimasDecos = condecoraciones.slice(0, 5);
 
+  const panelStyle = {
+    background: "rgba(17,18,20,0.72)", backdropFilter: "blur(12px)",
+    border: `1px solid rgba(201,162,74,0.15)`, borderRadius: 10,
+    padding: "16px 20px",
+  };
+  const panelTitle = {
+    fontFamily: "'Oswald', sans-serif", fontSize: 12, color: C.accent,
+    letterSpacing: 3, textTransform: "uppercase", marginBottom: 12,
+  };
+
   return (
-    <div>
-      {/* HERO — pantalla completa */}
+    <div style={{ height: "calc(100vh - 96px)", overflow: "hidden", position: "relative", boxSizing: "border-box" }}>
+      {/* Gradiente */}
       <div style={{
-        height: "calc(100vh - 96px)",
-        display: "flex", flexDirection: "column", justifyContent: "flex-end",
-        padding: "0 56px 90px",
-        position: "relative", overflow: "hidden",
-        boxSizing: "border-box",
-      }}>
-        {/* Gradiente inferior para legibilidad */}
-        <div style={{
-          position: "absolute", inset: 0,
-          background: "linear-gradient(to top, rgba(6,5,4,0.92) 0%, rgba(6,5,4,0.3) 50%, transparent 100%)",
-          pointerEvents: "none",
-        }} />
+        position: "absolute", inset: 0,
+        background: "linear-gradient(to top, rgba(6,5,4,0.9) 0%, rgba(6,5,4,0.2) 60%, transparent 100%)",
+        pointerEvents: "none",
+      }} />
 
-        {/* Contenido hero */}
-        <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 40, flexWrap: "wrap" }}>
-          {/* Izquierda — nombre y rango */}
-          <div>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: C.accent, letterSpacing: 4, marginBottom: 8, opacity: 0.8 }}>
-              BIENVENIDO, LEGIONARIO
-            </div>
-            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 52, fontWeight: 700, color: C.text, lineHeight: 1, letterSpacing: 2, marginBottom: 8 }}>
-              {member.displayName || member.handle}
-            </div>
-            {roleNames && (
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: C.accent, letterSpacing: 3 }}>
-                {roleNames}
-              </div>
-            )}
-            {/* Stats en línea */}
-            <div style={{ display: "flex", gap: 32, marginTop: 20 }}>
-              {statCards.map(s => (
-                <div key={s.label}>
-                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 34, color: s.color, lineHeight: 1 }}>{s.value}</div>
-                  <div style={{ color: "rgba(232,224,208,0.45)", fontSize: 10, letterSpacing: 2, fontFamily: "'Oswald', sans-serif", textTransform: "uppercase", marginTop: 3 }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Derecha — próximas ops + condecoraciones apiladas */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 280, maxWidth: 360, maxHeight: "calc(100vh - 200px)", overflowY: "auto" }}>
-            {/* Próximas operaciones */}
-            <div style={{
-              background: "rgba(17,18,20,0.7)", backdropFilter: "blur(12px)",
-              border: `1px solid rgba(201,162,74,0.15)`, borderRadius: 10,
-              padding: "20px 24px",
-            }}>
-              <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.accent, letterSpacing: 3, textTransform: "uppercase", marginBottom: 14 }}>
-                Próximas operaciones
-              </div>
-              {proximas.length === 0 ? (
-                <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>Sin operaciones planificadas.</p>
-              ) : proximas.map(op => {
-                const est = OP_ESTADOS[op.estado] || OP_ESTADOS.planificada;
-                return (
-                  <div key={op._id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: `1px solid rgba(201,162,74,0.08)` }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13 }}>{op.nombre}</div>
-                      <div style={{ display: "flex", gap: 6, marginTop: 3, alignItems: "center" }}>
-                        <span style={S.badge(est.color)}>{est.label}</span>
-                        {op.fecha && <span style={{ color: C.muted, fontSize: 11 }}>{new Date(op.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}</span>}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {/* Condecoraciones */}
-            <div style={{
-              background: "rgba(17,18,20,0.7)", backdropFilter: "blur(12px)",
-              border: `1px solid rgba(201,162,74,0.15)`, borderRadius: 10,
-              padding: "20px 24px",
-            }}>
-              <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.accent, letterSpacing: 3, textTransform: "uppercase", marginBottom: 14 }}>
-                Condecoraciones recientes
-              </div>
-              {ultimasDecos.length === 0 ? (
-                <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>Sin condecoraciones registradas.</p>
-              ) : ultimasDecos.map(d => (
-                <div key={d._id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: `1px solid rgba(201,162,74,0.08)` }}>
-                  <span style={{ fontSize: 16, flexShrink: 0 }}>🎖</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.accent }}>{d.nombre}</div>
-                    <div style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>
-                      {d.memberHandle}{d.fecha && ` · ${new Date(d.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}`}
-                    </div>
+      {/* Ops arriba a la derecha */}
+      <div style={{ position: "absolute", top: 28, right: 56, zIndex: 1, width: 300, ...panelStyle }}>
+        <div style={panelTitle}>Próximas operaciones</div>
+        {proximas.length === 0
+          ? <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>Sin operaciones planificadas.</p>
+          : proximas.map(op => {
+            const est = OP_ESTADOS[op.estado] || OP_ESTADOS.planificada;
+            return (
+              <div key={op._id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: `1px solid rgba(201,162,74,0.08)` }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13 }}>{op.nombre}</div>
+                  <div style={{ display: "flex", gap: 5, marginTop: 2, alignItems: "center" }}>
+                    <span style={S.badge(est.color)}>{est.label}</span>
+                    {op.fecha && <span style={{ color: C.muted, fontSize: 11 }}>{new Date(op.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}</span>}
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
+              </div>
+            );
+          })
+        }
       </div>
 
-      {/* Sección inferior */}
-      <div style={{ padding: "0 56px 40px" }}>
-
-      {/* Operaciones recientes completadas */}
-      {opsCompletadas.length > 0 && (
-        <div style={S.card}>
-          <h3 style={{ ...S.h3, marginBottom: 16 }}>Operaciones completadas</h3>
-          <table style={S.table}>
-            <thead>
-              <tr>
-                <th style={S.th}>Operación</th>
-                <th style={S.th}>Tipo</th>
-                <th style={S.th}>Fecha</th>
-                <th style={S.th}>Confirmados</th>
-                <th style={S.th}>Bajas</th>
-              </tr>
-            </thead>
-            <tbody>
-              {opsCompletadas.slice(0, 8).map(op => {
-                const vals  = Object.values(op.asistencia || {});
-                const conf  = vals.filter(v => v === "confirmada").length;
-                const bajas = vals.filter(v => v === "baja").length;
-                return (
-                  <tr key={op._id}>
-                    <td style={{ ...S.td, fontFamily: "'Oswald', sans-serif" }}>{op.nombre}</td>
-                    <td style={S.td}><span style={S.badge(C.accentDim)}>{op.tipo}</span></td>
-                    <td style={{ ...S.td, fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: C.muted }}>
-                      {op.fecha ? new Date(op.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
-                    </td>
-                    <td style={{ ...S.td, color: C.green, fontFamily: "'Oswald', sans-serif" }}>{conf}</td>
-                    <td style={{ ...S.td, color: conf + bajas > 0 ? C.danger : C.muted, fontFamily: "'Oswald', sans-serif" }}>{bajas}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {/* Centro — bienvenida */}
+      <div style={{
+        position: "absolute", inset: 0, zIndex: 1,
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        pointerEvents: "none",
+      }}>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: C.accent, letterSpacing: 5, marginBottom: 12, opacity: 0.7 }}>
+          BIENVENIDO, LEGIONARIO
         </div>
-      )}
+        <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 64, fontWeight: 700, color: C.text, lineHeight: 1, letterSpacing: 4, textAlign: "center", textShadow: "0 2px 20px rgba(0,0,0,0.8)" }}>
+          {member.displayName || member.handle}
+        </div>
+        {roleNames && (
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: C.accent, letterSpacing: 4, marginTop: 10 }}>
+            {roleNames}
+          </div>
+        )}
+      </div>
 
-      {/* Sala de Mandos — secciones informativas del clan */}
-      {salaMandos && [...salaMandos].sort((a, b) => (a.orden || 0) - (b.orden || 0)).map(sec => (
-        <div key={sec._id} style={{ marginBottom: 32 }}>
-          <div style={{ borderLeft: `4px solid ${C.accent}`, paddingLeft: 16, marginBottom: 16 }}>
-            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 20, color: C.accent, letterSpacing: 3, textTransform: "uppercase" }}>
-              {sec.titulo}
+      {/* Abajo izquierda — stats */}
+      <div style={{ position: "absolute", bottom: 48, left: 56, zIndex: 1, display: "flex", gap: 36 }}>
+        {statCards.map(s => (
+          <div key={s.label}>
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 36, color: s.color, lineHeight: 1 }}>{s.value}</div>
+            <div style={{ color: "rgba(232,224,208,0.4)", fontSize: 10, letterSpacing: 2, fontFamily: "'Oswald', sans-serif", textTransform: "uppercase", marginTop: 3 }}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Abajo derecha — condecoraciones */}
+      <div style={{ position: "absolute", bottom: 48, right: 56, zIndex: 1, width: 300, ...panelStyle }}>
+        <div style={panelTitle}>Condecoraciones recientes</div>
+        {ultimasDecos.length === 0
+          ? <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>Sin condecoraciones registradas.</p>
+          : ultimasDecos.map(d => (
+            <div key={d._id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: `1px solid rgba(201,162,74,0.08)` }}>
+              <span style={{ fontSize: 14, flexShrink: 0 }}>🎖</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 12, color: C.accent }}>{d.nombre}</div>
+                <div style={{ color: C.muted, fontSize: 11 }}>{d.memberHandle}</div>
+              </div>
             </div>
-          </div>
-          <div style={S.card}>
-            <div className="legio-render" style={{ color: C.text, lineHeight: 1.8, fontSize: 15 }}
-              dangerouslySetInnerHTML={{ __html: sec.contenido || "" }} />
-          </div>
-        </div>
-      ))}
-
-      </div>{/* fin padding sección inferior */}
+          ))
+        }
+      </div>
     </div>
   );
 }
