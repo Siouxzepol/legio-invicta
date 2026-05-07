@@ -126,6 +126,7 @@ const OP_ESTADOS = {
   planificada: { label: "Planificada", color: "#8a6e2a" },
   en_curso:    { label: "En curso",    color: "#4caf50" },
   completada:  { label: "Completada",  color: "#7a7a82" },
+  fallida:     { label: "Fallida",     color: "#8b5cf6" },
   cancelada:   { label: "Cancelada",   color: "#c0392b" },
 };
 
@@ -142,6 +143,7 @@ const ALL_PERMS = [
   { id: "post_sitrep",           label: "Publicar SITREP" },
   { id: "forum_post",            label: "Publicar en el foro" },
   { id: "forum_mod",             label: "Moderar el foro" },
+  { id: "forum_sugerencias",     label: "Ver y publicar en Sugerencias de misiones" },
 ];
 
 /* ── Helpers Firestore ── */
@@ -232,7 +234,7 @@ export default function App() {
   if (member.accessStatus === "rechazado") return <RejectedScreen member={member} />;
   if (member.accessStatus === "expulsado") return <ExpelledScreen member={member} />;
 
-  const canAdmin = isJefe || canDo("approve_requests") || canDo("manage_roles") || canDo("manage_members") || canDo("manage_orbat") || canDo("manage_ops") || canDo("forum_mod") || canDo("manage_especialidades") || canDo("manage_condecoraciones") || canDo("manage_sala_fama");
+  const canAdmin = isJefe || canDo("approve_requests") || canDo("manage_roles") || canDo("manage_members") || canDo("manage_orbat") || canDo("manage_ops") || canDo("forum_mod") || canDo("manage_especialidades") || canDo("manage_condecoraciones") || canDo("manage_sala_fama") || canDo("forum_sugerencias");
   const orbatActive = view === "orbat" || view === "sala_fama";
   const opsActive   = view === "operaciones" || view === "calendario";
 
@@ -976,6 +978,7 @@ function TabRangos({ roles, isJefe, isSuperAdmin }) {
   const [name,       setName]      = useState("");
   const [insigniaUrl,setInsignia]  = useState("");
   const [perms,      setPerms]     = useState([]);
+  const [orden,      setOrden]     = useState(0);
   const [editId,     setEditId]    = useState(null);
 
   const canEdit = isJefe || isSuperAdmin;
@@ -984,18 +987,18 @@ function TabRangos({ roles, isJefe, isSuperAdmin }) {
 
   const save = async () => {
     if (!name.trim()) return;
-    const data = { name: name.trim(), insigniaUrl: insigniaUrl.trim(), permissions: perms };
+    const data = { name: name.trim(), insigniaUrl: insigniaUrl.trim(), permissions: perms, orden: Number(orden) };
     if (editId) {
       await fbUpd("roles", editId, data);
       setEditId(null);
     } else {
       await fbAdd("roles", data);
     }
-    setName(""); setInsignia(""); setPerms([]);
+    setName(""); setInsignia(""); setPerms([]); setOrden(0);
   };
 
   const startEdit = r => {
-    setEditId(r._id); setName(r.name); setInsignia(r.insigniaUrl || ""); setPerms(r.permissions || []);
+    setEditId(r._id); setName(r.name); setInsignia(r.insigniaUrl || ""); setPerms(r.permissions || []); setOrden(r.orden ?? 0);
   };
 
   const del = async r => {
@@ -1014,6 +1017,10 @@ function TabRangos({ roles, isJefe, isSuperAdmin }) {
               <div style={{ marginBottom: 12 }}>
                 <label style={S.label}>Nombre del rango</label>
                 <input style={S.input} value={name} onChange={e => setName(e.target.value)} placeholder="Ej: Soldado" />
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={S.label}>Orden de importancia (mayor = más alto)</label>
+                <input style={{ ...S.input, maxWidth: 100 }} type="number" min={0} value={orden} onChange={e => setOrden(e.target.value)} placeholder="0" />
               </div>
               <div style={{ marginBottom: 16 }}>
                 <label style={S.label}>Ruta de la insignia (PNG)</label>
@@ -1059,7 +1066,10 @@ function TabRangos({ roles, isJefe, isSuperAdmin }) {
                 : <div style={{ width: 28, flexShrink: 0 }} />
               }
               <div style={{ flex: 1 }}>
-                <span style={{ fontWeight: 600 }}>{r.name}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontWeight: 600 }}>{r.name}</span>
+                  <span style={{ fontSize: 11, color: C.muted, fontFamily: "'Share Tech Mono', monospace" }}>orden {r.orden ?? 0}</span>
+                </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
                   {(r.permissions || []).map(p => {
                     const def = ALL_PERMS.find(x => x.id === p);
@@ -1566,7 +1576,8 @@ function OrbatView({ unidades, miembros, roles, especialidades, condecoraciones,
   const OrbatCard = ({ m, color }) => {
     const memberRoles = getMemberRoles(m.memberId);
     const decos       = getMemberDecos(m.memberId);
-    const rangoP      = memberRoles.find(r => r.insigniaUrl) || memberRoles[0] || null;
+    const sorted      = [...memberRoles].sort((a, b) => (b.orden ?? 0) - (a.orden ?? 0));
+    const rangoP      = sorted.find(r => r.insigniaUrl) || sorted[0] || null;
     const bc          = color || C.accent;
     return (
       <div style={{
@@ -3031,7 +3042,8 @@ function EspecialidadesView({ especialidades }) {
 /* ─────────────────────────────────────── */
 /*  FORO (BETA)                            */
 /* ─────────────────────────────────────── */
-const FORO_CATS = ["General", "Dudas", "Operaciones", "Doctrina", "Otros"];
+const FORO_CATS        = ["General", "Dudas", "Operaciones", "Doctrina", "Otros"];
+const FORO_CAT_RESTRINGIDA = "Sugerencias de misiones";
 
 function ForoView({ member, isJefe, canDo, hilos }) {
   const [hiloId, setHiloId]   = useState(null);
@@ -3041,11 +3053,14 @@ function ForoView({ member, isJefe, canDo, hilos }) {
   const [categoria, setCategoria] = useState(FORO_CATS[0]);
   const [busy, setBusy]       = useState(false);
 
-  const canPost = isJefe || canDo("forum_post");
-  const canMod  = isJefe || canDo("forum_mod");
+  const canPost         = isJefe || canDo("forum_post");
+  const canMod          = isJefe || canDo("forum_mod");
+  const canSugerencias  = isJefe || canDo("forum_sugerencias");
+  const catsDisponibles = canSugerencias ? [...FORO_CATS, FORO_CAT_RESTRINGIDA] : FORO_CATS;
 
-  const pinned   = hilos.filter(h => h.fijado);
-  const unpinned = hilos.filter(h => !h.fijado);
+  const visibles = hilos.filter(h => h.categoria !== FORO_CAT_RESTRINGIDA || canSugerencias);
+  const pinned   = visibles.filter(h => h.fijado);
+  const unpinned = visibles.filter(h => !h.fijado);
   const sorted   = [...pinned, ...unpinned];
 
   const submitHilo = async e => {
@@ -3083,7 +3098,7 @@ function ForoView({ member, isJefe, canDo, hilos }) {
             <div style={{ marginBottom: 12 }}>
               <label style={S.label}>Categoría</label>
               <select style={{ ...S.input, width: "auto" }} value={categoria} onChange={e => setCategoria(e.target.value)}>
-                {FORO_CATS.map(c => <option key={c} value={c}>{c}</option>)}
+                {catsDisponibles.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div style={{ marginBottom: 12 }}>
