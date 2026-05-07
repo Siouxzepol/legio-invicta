@@ -2154,7 +2154,7 @@ function TabSalaMandos({ secciones, member, isJefe, canDo }) {
 
   const save = async () => {
     if (!titulo.trim()) return;
-    if (editId) {
+    if (editId && editId !== "new") {
       await fbUpd("sala_mandos", editId, { titulo: titulo.trim(), contenido, autor: member.handle });
     } else {
       const maxOrden = secciones.reduce((mx, s) => Math.max(mx, s.orden || 0), 0);
