@@ -3,12 +3,12 @@ import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-  projectId:         "legio-invicta-clan",
-  appId:             "1:299382240591:web:c5b92e8260058ca180413a",
-  storageBucket:     "legio-invicta-clan.firebasestorage.app",
-  apiKey:            "AIzaSyCANZXzfsQPadgKmaSL30NHt6GNRScNqAE",
-  authDomain:        "legio-invicta-clan.firebaseapp.com",
-  messagingSenderId: "299382240591",
+  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  appId:             import.meta.env.VITE_FIREBASE_APP_ID,
+  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
 };
 
 const app = initializeApp(firebaseConfig);
