@@ -3579,12 +3579,18 @@ function EspecialidadDetalleView({ espId, member, isJefe, canDo, especialidades 
         )}
         {miAcceso && !tieneAcceso && (
           <div>
-            <div style={{ color: C.accent, fontSize: 13, letterSpacing: 3, fontFamily: "'Share Tech Mono', monospace", marginBottom: 8 }}>
-              REVISE EL ESTADO DE TRÁMITE EN SU HOJA DE SERVICIO
-            </div>
-            {(miAcceso.estado === "rechazado" || miAcceso.estado === "suspendido") && miAcceso.motivo && (
-              <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>
-                Motivo: {miAcceso.motivo}
+            {(miAcceso.estado === "rechazado" || miAcceso.estado === "suspendido") ? (
+              <div>
+                <div style={{ color: C.danger, fontSize: 13, letterSpacing: 3, fontFamily: "'Share Tech Mono', monospace", marginBottom: 8 }}>
+                  HA SIDO {miAcceso.estado === "rechazado" ? "RECHAZADO" : "SUSPENDIDO"} POR EL MOTIVO QUE SE INDICA A CONTINUACIÓN:
+                </div>
+                <div style={{ color: C.muted, fontSize: 13 }}>
+                  {miAcceso.motivo || "Sin motivo especificado."}
+                </div>
+              </div>
+            ) : (
+              <div style={{ color: C.accent, fontSize: 13, letterSpacing: 3, fontFamily: "'Share Tech Mono', monospace" }}>
+                REVISE EL ESTADO DE TRÁMITE EN SU HOJA DE SERVICIO
               </div>
             )}
           </div>
