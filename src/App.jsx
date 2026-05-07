@@ -433,21 +433,33 @@ function LoginScreen() {
   };
 
   return (
-    <div style={{ ...S.page, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh" }}>
-      <div style={{ width: 360 }}>
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
+    <div style={{
+      minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
+      backgroundImage: "url(/pantallaregistro.png)",
+      backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat",
+      position: "relative",
+    }}>
+      {/* Overlay oscuro */}
+      <div style={{ position: "absolute", inset: 0, background: "rgba(8,6,4,0.62)", backdropFilter: "blur(1px)" }} />
+
+      <div style={{ position: "relative", zIndex: 1, width: 380 }}>
+        <div style={{ textAlign: "center", marginBottom: 28 }}>
           <img src="/logo.png" alt="Legio Invicta"
-            style={{ width: 120, height: 120, borderRadius: "50%", border: `2px solid ${C.border}`, marginBottom: 16 }} />
+            style={{ width: 110, height: 110, borderRadius: "50%", border: `2px solid ${C.accent}55`, marginBottom: 16, filter: "drop-shadow(0 0 18px rgba(201,162,74,0.4))" }} />
           <div style={{
-            fontFamily: "'Oswald', sans-serif", fontSize: 28, fontWeight: 700,
-            color: C.accent, letterSpacing: 6, marginBottom: 4,
+            fontFamily: "'Oswald', sans-serif", fontSize: 30, fontWeight: 700,
+            color: C.accent, letterSpacing: 8, marginBottom: 4,
+            textShadow: "0 0 30px rgba(201,162,74,0.5)",
           }}>LEGIO INVICTA</div>
-          <div style={{ color: C.muted, fontSize: 11, letterSpacing: 4, fontFamily: "'Share Tech Mono', monospace" }}>
+          <div style={{ color: "rgba(232,224,208,0.5)", fontSize: 11, letterSpacing: 5, fontFamily: "'Share Tech Mono', monospace" }}>
             HONOR Y VICTORIA
           </div>
         </div>
 
-        <div style={{ ...S.card, borderColor: C.border }}>
+        <div style={{
+          background: "rgba(17,18,20,0.75)", backdropFilter: "blur(18px)",
+          border: `1px solid rgba(201,162,74,0.2)`, borderRadius: 10, padding: 28,
+        }}>
           {mode !== "reset" && (
             <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: `1px solid ${C.border}` }}>
               {["login", "register"].map(m => (
