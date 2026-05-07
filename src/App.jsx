@@ -129,7 +129,6 @@ const ALL_PERMS = [
   { id: "manage_ops",       label: "Gestionar operaciones" },
   { id: "post_sitrep",      label: "Publicar SITREP" },
   { id: "manage_orbat",     label: "Gestionar ORBAT" },
-  { id: "manage_doctrina",  label: "Gestionar doctrina" },
   { id: "forum_post",       label: "Publicar en el foro" },
   { id: "forum_mod",        label: "Moderar el foro" },
 ];
@@ -167,7 +166,6 @@ export default function App() {
   const roles           = useCollection("roles");
   const orbatUnidades   = useCollection("orbat_unidades", orderBy("orden"));
   const orbatMiembros   = useCollection("orbat_miembros");
-  const doctrina        = useCollection("doctrina", orderBy("createdAt", "desc"));
   const especialidades  = useCollection("especialidades", orderBy("nombre"));
   const operaciones     = useCollection("operaciones", orderBy("fecha", "desc"));
   const condecoraciones = useCollection("condecoraciones", orderBy("createdAt", "desc"));
@@ -231,7 +229,7 @@ export default function App() {
   if (member.accessStatus === "rechazado") return <RejectedScreen member={member} />;
   if (member.accessStatus === "expulsado") return <ExpelledScreen member={member} />;
 
-  const canAdmin = isJefe || canDo("approve_requests") || canDo("manage_roles") || canDo("manage_members") || canDo("manage_orbat") || canDo("manage_doctrina") || canDo("manage_ops") || canDo("forum_mod") || canDo("manage_especialidades");
+  const canAdmin = isJefe || canDo("approve_requests") || canDo("manage_roles") || canDo("manage_members") || canDo("manage_orbat") || canDo("manage_ops") || canDo("forum_mod") || canDo("manage_especialidades");
   const orbatActive = view === "orbat" || view === "sala_fama";
   const opsActive   = view === "operaciones" || view === "calendario";
 
@@ -280,7 +278,6 @@ export default function App() {
             else setView(id);
           }}
         />
-        <span style={S.navItem(view === "doctrina")} onClick={() => setView("doctrina")}>Doctrina</span>
         <span style={S.navItem(view === "servicio")} onClick={() => setView("servicio")}>Mi Hoja</span>
         {canAdmin && (
           <span style={S.navItem(view === "admin")} onClick={() => setView("admin")}>Mando</span>
@@ -299,9 +296,8 @@ export default function App() {
         {view === "sala_fama"      && <SalaFamaView salaFama={salaFama} condecoraciones={condecoraciones} />}
         {view === "especialidades" && <EspecialidadesView especialidades={especialidades} />}
         {view === "especialidad"  && espId && <EspecialidadDetalleView espId={espId} member={member} isJefe={isJefe} canDo={canDo} especialidades={especialidades} />}
-        {view === "doctrina"       && <DoctrinaView docs={doctrina} member={member} isJefe={isJefe} canDo={canDo} />}
         {view === "foro"           && <ForoView member={member} isJefe={isJefe} canDo={canDo} hilos={foroHilos} />}
-        {view === "admin"          && <AdminPanel roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} canDo={canDo} orbatUnidades={orbatUnidades} orbatMiembros={orbatMiembros} doctrina={doctrina} member={member} especialidades={especialidades} operaciones={operaciones} condecoraciones={condecoraciones} salaFama={salaFama} salaMandos={salaMandos} foroHilos={foroHilos} />}
+        {view === "admin"          && <AdminPanel roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} canDo={canDo} orbatUnidades={orbatUnidades} orbatMiembros={orbatMiembros} member={member} especialidades={especialidades} operaciones={operaciones} condecoraciones={condecoraciones} salaFama={salaFama} salaMandos={salaMandos} foroHilos={foroHilos} />}
       </div>
     </div>
   );
@@ -845,7 +841,7 @@ function MiembrosView({ roles, canDo, isJefe }) {
 /* ─────────────────────────────────────── */
 /*  PANEL ADMIN (MANDO)                    */
 /* ─────────────────────────────────────── */
-function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMiembros, doctrina, member, especialidades, operaciones, condecoraciones, salaFama, salaMandos, foroHilos }) {
+function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMiembros, member, especialidades, operaciones, condecoraciones, salaFama, salaMandos, foroHilos }) {
   const [tab, setTab] = useState("solicitudes");
 
   const tabs = [
@@ -857,8 +853,7 @@ function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMi
     { id: "operaciones",       label: "Operaciones",      show: isJefe || canDo("manage_ops") },
     { id: "condecoraciones",   label: "Condecoraciones",  show: isJefe || canDo("manage_members") },
     { id: "sala_fama",         label: "Sala de la Fama",  show: isJefe || canDo("manage_members") },
-    { id: "sala_mandos",       label: "Sala de Mandos",   show: isJefe || canDo("manage_doctrina") },
-    { id: "doctrina",          label: "Doctrina",         show: isJefe || canDo("manage_doctrina") },
+    { id: "sala_mandos",       label: "Sala de Mandos",   show: isJefe },
     { id: "foro",              label: "Foro",             show: isJefe || canDo("forum_mod") },
   ].filter(t => t.show);
 
@@ -888,7 +883,6 @@ function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMi
       {tab === "condecoraciones" && <TabCondecoraciones condecoraciones={condecoraciones} member={member} isJefe={isJefe} canDo={canDo} />}
       {tab === "sala_fama"       && <TabSalaFama salaFama={salaFama} condecoraciones={condecoraciones} isJefe={isJefe} canDo={canDo} />}
       {tab === "sala_mandos"     && <TabSalaMandos secciones={salaMandos} member={member} isJefe={isJefe} canDo={canDo} />}
-      {tab === "doctrina"        && <TabDoctrina docs={doctrina} member={member} isJefe={isJefe} canDo={canDo} />}
       {tab === "foro"            && <TabForo hilos={foroHilos} member={member} isJefe={isJefe} canDo={canDo} />}
     </div>
   );
@@ -1819,166 +1813,6 @@ function SalaFamaGrid({ salaFama, condecoraciones }) {
 
 /* ─────────────────────────────────────── */
 /*  TAB DOCTRINA (ADMIN)                   */
-/* ─────────────────────────────────────── */
-function TabDoctrina({ docs, member, isJefe, canDo }) {
-  const [editId,    setEditId]    = useState(null); // null = lista, "new" = nuevo, id = editar
-  const [titulo,    setTitulo]    = useState("");
-  const [categoria, setCategoria] = useState("");
-  const [contenido, setContenido] = useState("");
-
-  const canEdit = isJefe || canDo("manage_doctrina");
-
-  const startNew = () => { setEditId("new"); setTitulo(""); setCategoria(""); setContenido(""); };
-  const startEdit = d => { setEditId(d._id); setTitulo(d.titulo); setCategoria(d.categoria || ""); setContenido(d.contenido || ""); };
-  const cancel = () => setEditId(null);
-
-  const save = async () => {
-    if (!titulo.trim()) return;
-    const data = { titulo: titulo.trim(), categoria: categoria.trim(), contenido, autor: member.handle };
-    if (editId === "new") {
-      await fbAdd("doctrina", data);
-    } else {
-      await fbUpd("doctrina", editId, data);
-    }
-    setEditId(null);
-  };
-
-  const del = async d => {
-    if (!confirm(`¿Eliminar "${d.titulo}"?`)) return;
-    await fbDel("doctrina", d._id);
-  };
-
-  if (editId !== null) {
-    return (
-      <div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-          <button style={S.btn("ghost")} onClick={cancel}>← Volver</button>
-          <h2 style={{ ...S.h2, margin: 0 }}>{editId === "new" ? "Nueva guía" : "Editar guía"}</h2>
-        </div>
-        <div style={{ ...S.card, marginBottom: 16 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-            <div>
-              <label style={S.label}>Título</label>
-              <input style={S.input} value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Ej: Procedimiento de asalto urbano" />
-            </div>
-            <div>
-              <label style={S.label}>Categoría</label>
-              <input style={S.input} value={categoria} onChange={e => setCategoria(e.target.value)} placeholder="Ej: Táctica, ROE, Logística…" />
-            </div>
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ ...S.label, marginBottom: 8 }}>Contenido</label>
-            <LegioEditor content={contenido} onChange={setContenido} minHeight={360} stickyTop={96} />
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button style={S.btn("primary")} onClick={save}>Guardar</button>
-            <button style={S.btn("ghost")} onClick={cancel}>Cancelar</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-        <h2 style={{ ...S.h2, margin: 0 }}>Doctrina ({docs.length})</h2>
-        {canEdit && <button style={S.btn("primary")} onClick={startNew}>+ Nueva guía</button>}
-      </div>
-      {docs.length === 0
-        ? <p style={{ color: C.muted }}>Sin guías de doctrina.</p>
-        : docs.map(d => (
-          <div key={d._id} style={{ ...S.card, marginBottom: 12, display: "flex", alignItems: "flex-start", gap: 16 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, marginBottom: 4 }}>{d.titulo}</div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {d.categoria && <span style={S.badge(C.accentDim)}>{d.categoria}</span>}
-                <span style={{ color: C.muted, fontSize: 11, fontFamily: "'Share Tech Mono', monospace" }}>@{d.autor}</span>
-                {d.createdAt?.seconds && (
-                  <span style={{ color: C.muted, fontSize: 11 }}>
-                    {new Date(d.createdAt.seconds * 1000).toLocaleDateString("es-ES")}
-                  </span>
-                )}
-              </div>
-            </div>
-            {canEdit && (
-              <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                <button style={S.btn("ghost")} onClick={() => startEdit(d)}>✎ Editar</button>
-                <button style={S.btn("danger")} onClick={() => del(d)}>✕</button>
-              </div>
-            )}
-          </div>
-        ))
-      }
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────── */
-/*  VISTA PÚBLICA DOCTRINA                 */
-/* ─────────────────────────────────────── */
-function DoctrinaView({ docs, member, isJefe, canDo }) {
-  const [sel, setSel] = useState(null);
-
-  const canEdit = isJefe || canDo("manage_doctrina");
-
-  if (sel) {
-    return (
-      <div>
-        <button style={{ ...S.btn("ghost"), marginBottom: 20 }} onClick={() => setSel(null)}>← Volver</button>
-        <div style={{ marginBottom: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          {sel.categoria && <span style={S.badge(C.accentDim)}>{sel.categoria}</span>}
-          <span style={{ color: C.muted, fontSize: 12, fontFamily: "'Share Tech Mono', monospace" }}>@{sel.autor}</span>
-          {sel.createdAt?.seconds && (
-            <span style={{ color: C.muted, fontSize: 12 }}>
-              {new Date(sel.createdAt.seconds * 1000).toLocaleDateString("es-ES")}
-            </span>
-          )}
-        </div>
-        <h2 style={S.h2}>{sel.titulo}</h2>
-        <div style={{ ...S.card }}>
-          <div
-            className="legio-render"
-            style={{ color: C.text, lineHeight: 1.7, fontSize: 14 }}
-            dangerouslySetInnerHTML={{ __html: sel.contenido || "" }}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <h2 style={S.h2}>Doctrina</h2>
-      {docs.length === 0 ? (
-        <p style={{ color: C.muted }}>
-          Sin guías de doctrina.{canEdit && " Créalas desde el Panel de Mando → Doctrina."}
-        </p>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
-          {docs.map(d => (
-            <div key={d._id} style={{ ...S.card, cursor: "pointer", borderLeft: `3px solid ${C.accent}55`, transition: "border-color 0.2s" }}
-              onClick={() => setSel(d)}
-              onMouseEnter={e => e.currentTarget.style.borderLeftColor = C.accent}
-              onMouseLeave={e => e.currentTarget.style.borderLeftColor = C.accent + "55"}
-            >
-              <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, marginBottom: 8 }}>{d.titulo}</div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {d.categoria && <span style={S.badge(C.accentDim)}>{d.categoria}</span>}
-                <span style={{ color: C.muted, fontSize: 11, fontFamily: "'Share Tech Mono', monospace" }}>@{d.autor}</span>
-              </div>
-              {d.createdAt?.seconds && (
-                <div style={{ color: C.muted, fontSize: 11, marginTop: 8 }}>
-                  {new Date(d.createdAt.seconds * 1000).toLocaleDateString("es-ES")}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 /* ─────────────────────────────────────── */
 /*  TAB ESPECIALIDADES (ADMIN)             */
@@ -2331,7 +2165,7 @@ function SalaMandosView({ secciones }) {
 /*  TAB SALA DE MANDOS (ADMIN)             */
 /* ─────────────────────────────────────── */
 function TabSalaMandos({ secciones, member, isJefe, canDo }) {
-  const canEdit = isJefe || canDo("manage_doctrina");
+  const canEdit = isJefe;
   const sorted  = [...secciones].sort((a, b) => (a.orden || 0) - (b.orden || 0));
 
   const [editId,    setEditId]    = useState(null);
