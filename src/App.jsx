@@ -131,7 +131,7 @@ const OP_ESTADOS = {
 
 /* ── Permisos disponibles ── */
 const ALL_PERMS = [
-  { id: "manage_members",       label: "Gestionar legionarios" },
+  { id: "manage_members",       label: "Gestionar militares" },
   { id: "manage_roles",         label: "Gestionar rangos" },
   { id: "approve_requests",     label: "Aprobar solicitudes de registro" },
   { id: "manage_especialidades",label: "Gestionar especialidades y formación" },
@@ -593,7 +593,7 @@ function ExpelledScreen({ member }) {
     <StatusScreen color={C.danger} icon="☠"
       title="ACCESO REVOCADO"
       lines={[
-        `Legionario: ${member.handle}`,
+        `Militar: ${member.handle}`,
         member.accessNote ? `Motivo: ${member.accessNote}` : "Tu acceso ha sido revocado.",
         member.expelledAt ? `Fecha: ${new Date(member.expelledAt?.seconds * 1000).toLocaleDateString("es-ES")}` : "",
       ].filter(Boolean)}
@@ -660,10 +660,18 @@ function InicioView({ member, roles, operaciones, condecoraciones, orbatMiembros
     return Math.round(total / base.length);
   })();
 
-  const roleNames = roles.filter(r => getMemberRoleIds(member).includes(r._id)).map(r => r.name).join(" · ");
+  const memberRolesList = roles.filter(r => getMemberRoleIds(member).includes(r._id));
+  const roleNames  = memberRolesList.map(r => r.name).join(" · ");
+  const firstRank  = memberRolesList[0]?.name || "";
+  const RANGOS_SIN_MI = ["Recluta", "Soldado", "Soldado 1º"];
+  const welcomeText = firstRank
+    ? RANGOS_SIN_MI.includes(firstRank)
+      ? `BIENVENIDO, ${firstRank.toUpperCase()}`
+      : `BIENVENIDO, MI ${firstRank.toUpperCase()}`
+    : "BIENVENIDO, MILITAR";
 
   const statCards = [
-    { label: "Legionarios activos",   value: activos.length,          color: C.accent },
+    { label: "Militares activos",   value: activos.length,          color: C.accent },
     { label: "Ops completadas",        value: opsCompletadas.length,   color: C.green },
     { label: "En cartera",             value: opsActivas.length,       color: C.accentDim },
     { label: "Asistencia media",       value: avgAsistencia !== null ? `${avgAsistencia}%` : "—", color: avgAsistencia >= 70 ? C.green : avgAsistencia >= 40 ? C.accentDim : C.danger },
@@ -720,7 +728,7 @@ function InicioView({ member, roles, operaciones, condecoraciones, orbatMiembros
         pointerEvents: "none",
       }}>
         <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: C.accent, letterSpacing: 5, marginBottom: 12, opacity: 0.7 }}>
-          BIENVENIDO, LEGIONARIO
+          {welcomeText}
         </div>
         <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 64, fontWeight: 700, color: C.text, lineHeight: 1, letterSpacing: 4, textAlign: "center", textShadow: "0 2px 20px rgba(0,0,0,0.8)" }}>
           {member.displayName || member.handle}
@@ -771,7 +779,7 @@ function MiembrosView({ roles, canDo, isJefe }) {
 
   return (
     <div>
-      <h2 style={S.h2}>Legionarios</h2>
+      <h2 style={S.h2}>Militares</h2>
       <div style={S.card}>
         <table style={S.table}>
           <thead>
@@ -807,7 +815,7 @@ function MiembrosView({ roles, canDo, isJefe }) {
               );
             })}
             {active.length === 0 && (
-              <tr><td colSpan={4} style={{ ...S.td, color: C.muted, textAlign: "center" }}>Sin legionarios activos</td></tr>
+              <tr><td colSpan={4} style={{ ...S.td, color: C.muted, textAlign: "center" }}>Sin militares activos</td></tr>
             )}
           </tbody>
         </table>
@@ -1103,8 +1111,8 @@ function AsignacionRangos({ roles, canEdit }) {
     <div style={S.card}>
       <h3 style={{ ...S.h3, marginBottom: 16 }}>Asignación de rangos</h3>
       <input style={{ ...S.input, maxWidth: 320, marginBottom: 16 }} value={search}
-        onChange={e => setSearch(e.target.value)} placeholder="Buscar legionario…" />
-      {filtered.length === 0 && <p style={{ color: C.muted }}>Sin legionarios activos.</p>}
+        onChange={e => setSearch(e.target.value)} placeholder="Buscar militar…" />
+      {filtered.length === 0 && <p style={{ color: C.muted }}>Sin militares activos.</p>}
       {filtered.map(m => {
         const memberRoleIds  = getMemberRoleIds(m);
         const memberRoles    = roles.filter(r => memberRoleIds.includes(r._id));
@@ -1208,7 +1216,7 @@ function TabLegionarios({ roles }) {
           </div>
         );
       })}
-      {filtered.length === 0 && <p style={{ color: C.muted }}>Sin legionarios que coincidan.</p>}
+      {filtered.length === 0 && <p style={{ color: C.muted }}>Sin militares que coincidan.</p>}
     </div>
   );
 }
@@ -1223,7 +1231,7 @@ function TabBajas() {
 
   const expel = async () => {
     if (!sel) return;
-    if (!confirm("¿Confirmar baja del legionario?")) return;
+    if (!confirm("¿Confirmar baja del militar?")) return;
     await fbUpd("members", sel, {
       accessStatus: "expulsado",
       accessNote: note.trim() || null,
@@ -1242,7 +1250,7 @@ function TabBajas() {
       <div style={{ ...S.card, marginBottom: 24 }}>
         <h3 style={S.h3}>Dar de baja</h3>
         <div style={{ marginBottom: 12 }}>
-          <label style={S.label}>Legionario</label>
+          <label style={S.label}>Militar</label>
           <select style={{ ...S.input, maxWidth: 320 }} value={sel} onChange={e => setSel(e.target.value)}>
             <option value="">— Seleccionar —</option>
             {active.map(m => <option key={m._id} value={m._id}>@{m.handle}</option>)}
@@ -1446,9 +1454,9 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
           <div style={{ ...S.card, marginBottom: 16 }}>
             <h3 style={S.h3}>{editMId ? "Editar efectivo" : "Añadir al ORBAT"}</h3>
             <div style={{ marginBottom: 12 }}>
-              <label style={S.label}>Legionario</label>
+              <label style={S.label}>Militar</label>
               <select style={S.input} value={mMemberId} onChange={e => setMMemberId(e.target.value)}>
-                <option value="">— Seleccionar legionario —</option>
+                <option value="">— Seleccionar militar —</option>
                 {activeMembers.map(m => (
                   <option key={m._id} value={m._id}>
                     @{m.handle}{m.displayName && m.displayName !== m.handle ? ` — ${m.displayName}` : ""}
@@ -2296,7 +2304,7 @@ function TabSalaFama({ salaFama, condecoraciones, isJefe, canDo }) {
           <h3 style={S.h3}>Añadir a la Sala de la Fama</h3>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
             <div>
-              <label style={S.label}>Legionario</label>
+              <label style={S.label}>Militar</label>
               <select style={S.input} value={selId} onChange={e => { setSelId(e.target.value); setDecoIds([]); }}>
                 <option value="">— Seleccionar —</option>
                 {activeMembers.map(m => (
@@ -2314,7 +2322,7 @@ function TabSalaFama({ salaFama, condecoraciones, isJefe, canDo }) {
             <div style={{ marginBottom: 16 }}>
               <label style={S.label}>Insignias a mostrar</label>
               {selDecos.length === 0 ? (
-                <p style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>Este legionario no tiene condecoraciones registradas.</p>
+                <p style={{ color: C.muted, fontSize: 12, marginTop: 4 }}>Este militar no tiene condecoraciones registradas.</p>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
                   {selDecos.map(d => (
@@ -2422,7 +2430,7 @@ function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
           <h3 style={S.h3}>Otorgar condecoración</h3>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
             <div>
-              <label style={S.label}>Legionario</label>
+              <label style={S.label}>Militar</label>
               <select style={S.input} value={selId} onChange={e => setSelId(e.target.value)}>
                 <option value="">— Seleccionar —</option>
                 {activeMembers.map(m => <option key={m._id} value={m._id}>@{m.handle}{m.displayName && m.displayName !== m.handle ? ` — ${m.displayName}` : ""}</option>)}
