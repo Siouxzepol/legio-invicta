@@ -2209,21 +2209,6 @@ function HojaServicioView({ member, roles, operaciones, orbatMiembros, orbatUnid
         ))}
       </div>
 
-      {/* Especialidades */}
-      {misAccesos.length > 0 && (
-        <div style={{ ...S.card, marginBottom: 24 }}>
-          <h3 style={S.h3}>Formación especializada</h3>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-            {misAccesos.map(a => (
-              <div key={a._id} style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 16px", minWidth: 180 }}>
-                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, color: C.text, marginBottom: 6 }}>{a.espNombre}</div>
-                <span style={{ ...S.badge(espEstadoColor(a.estado)), fontSize: 11 }}>{espEstadoLabel(a.estado)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Historial + Condecoraciones */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
         <div style={S.card}>
@@ -2275,6 +2260,22 @@ function HojaServicioView({ member, roles, operaciones, orbatMiembros, orbatUnid
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Formación especializada */}
+      <div style={{ ...S.card, marginTop: 24 }}>
+        <h3 style={S.h3}>Formación especializada</h3>
+        {misAccesos.length === 0
+          ? <p style={{ color: C.muted, fontSize: 13 }}>Sin solicitudes de formación registradas.</p>
+          : <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+              {misAccesos.map(a => (
+                <div key={a._id} style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 16px", minWidth: 180 }}>
+                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, color: C.text, marginBottom: 6 }}>{a.espNombre}</div>
+                  <span style={{ ...S.badge(espEstadoColor(a.estado)), fontSize: 11 }}>{espEstadoLabel(a.estado)}</span>
+                </div>
+              ))}
+            </div>
+        }
       </div>
     </div>
   );
