@@ -923,11 +923,17 @@ function TabSolicitudes({ roles, member }) {
     const note = prompt("Motivo del rechazo (opcional):") || "";
     await fbUpd("members", m._id, { accessStatus: "rechazado", accessNote: note });
   };
-  const setEspEstado = async (a, estado) => fbUpd("especialidad_accesos", a._id, {
-    estado,
-    otorgadoPor: member?.handle || "mando",
-    otorgadoAt:  serverTimestamp(),
-  });
+  const setEspEstado = async (a, estado) => {
+    const data = { estado, otorgadoPor: member?.handle || "mando", otorgadoAt: serverTimestamp() };
+    if (estado === "rechazado" || estado === "suspendido") {
+      const motivo = prompt(`Motivo de ${estado === "rechazado" ? "rechazo" : "suspensión"} (visible al miembro):`);
+      if (motivo === null) return;
+      data.motivo = motivo.trim();
+    } else {
+      data.motivo = "";
+    }
+    await fbUpd("especialidad_accesos", a._id, data);
+  };
 
   return (
     <div>
@@ -958,9 +964,8 @@ function TabSolicitudes({ roles, member }) {
             <div style={{ flex: 1, minWidth: 200 }}>
               <span style={{ fontFamily: "'Share Tech Mono', monospace", color: C.accent }}>{a.memberHandle}</span>
               <span style={{ ...S.badge(C.accentDim), marginLeft: 10 }}>{a.espNombre}</span>
-              {a.otorgadoPor && (
-                <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>Gestionado por {a.otorgadoPor}</div>
-              )}
+              {a.otorgadoPor && <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>Gestionado por {a.otorgadoPor}</div>}
+              {a.motivo && <div style={{ color: C.muted, fontSize: 11, marginTop: 2 }}>Motivo: {a.motivo}</div>}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ ...S.badge(espEstadoColor(a.estado)), minWidth: 120, textAlign: "center" }}>
@@ -3560,20 +3565,22 @@ function EspecialidadDetalleView({ espId, member, isJefe, canDo, especialidades 
             Acceder a la formación
           </button>
         )}
-        {!tieneAcceso && !miAcceso && (
+        {!miAcceso && (
           <button style={{ ...S.btn("primary"), padding: "14px 48px", fontSize: 16, letterSpacing: 3 }}
             onClick={solicitar}>
             Solicitar formación
           </button>
         )}
-        {miAcceso?.estado === "pendiente" && (
-          <div style={{ color: C.accentDim, fontSize: 14, letterSpacing: 2, fontFamily: "'Share Tech Mono', monospace" }}>
-            ⏳ SOLICITUD EN REVISIÓN POR EL MANDO
-          </div>
-        )}
-        {miAcceso?.estado === "rechazado" && (
-          <div style={{ color: C.danger, fontSize: 14, letterSpacing: 1 }}>
-            Solicitud rechazada. Contacta con el mando.
+        {miAcceso && !tieneAcceso && (
+          <div>
+            <div style={{ color: C.accent, fontSize: 13, letterSpacing: 3, fontFamily: "'Share Tech Mono', monospace", marginBottom: 8 }}>
+              REVISE EL ESTADO DE TRÁMITE EN SU HOJA DE SERVICIO
+            </div>
+            {(miAcceso.estado === "rechazado" || miAcceso.estado === "suspendido") && miAcceso.motivo && (
+              <div style={{ color: C.muted, fontSize: 13, marginTop: 4 }}>
+                Motivo: {miAcceso.motivo}
+              </div>
+            )}
           </div>
         )}
       </div>
