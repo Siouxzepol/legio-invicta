@@ -3453,11 +3453,12 @@ function EspecialidadDetalleView({ espId, member, isJefe, canDo, especialidades 
   const esp     = especialidades.find(e => e._id === espId);
   const guias   = useCollection("especialidad_guias", orderBy("orden"));
   const accesos = useCollection("especialidad_accesos", orderBy("createdAt", "desc"));
+  const [mostrando, setMostrando] = useState("portada"); // "portada" | "guias"
 
   if (!esp) return <p style={{ color: C.muted }}>Especialidad no encontrada.</p>;
 
-  const espGuias   = guias.filter(g => g.espId === espId).sort((a, b) => (a.orden || 0) - (b.orden || 0));
-  const miAcceso   = accesos.find(a => a.memberId === member._id && a.espId === espId);
+  const espGuias    = guias.filter(g => g.espId === espId).sort((a, b) => (a.orden || 0) - (b.orden || 0));
+  const miAcceso    = accesos.find(a => a.memberId === member._id && a.espId === espId);
   const tieneAcceso = isJefe || canDo("manage_roles") || miAcceso?.estado === "aprobado";
 
   const solicitar = async () => {
@@ -3471,27 +3472,14 @@ function EspecialidadDetalleView({ espId, member, isJefe, canDo, especialidades 
     });
   };
 
-  return (
-    <div>
-      {esp.portadaUrl ? (
-        <div style={{ width: "100%", height: 260, overflow: "hidden", borderRadius: 8, marginBottom: 28, position: "relative" }}>
-          <img src={esp.portadaUrl} alt={esp.nombre}
-            style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.7)" }} />
-          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "32px 32px 20px",
-            background: "linear-gradient(transparent, rgba(0,0,0,0.85))" }}>
-            <h2 style={{ ...S.h2, marginBottom: 4, fontSize: 32 }}>{esp.nombre}</h2>
-            {esp.descripcion && <p style={{ color: C.muted, margin: 0, fontSize: 14 }}>{esp.descripcion}</p>}
-          </div>
-        </div>
-      ) : (
-        <div style={{ marginBottom: 24 }}>
-          <h2 style={S.h2}>{esp.nombre}</h2>
-          {esp.descripcion && <p style={{ color: C.muted }}>{esp.descripcion}</p>}
-        </div>
-      )}
-
-      {tieneAcceso ? (
-        espGuias.length === 0
+  /* ── Vista guías ── */
+  if (mostrando === "guias") {
+    return (
+      <div>
+        <button style={{ ...S.btn("ghost"), marginBottom: 24 }} onClick={() => setMostrando("portada")}>
+          ← Volver a {esp.nombre}
+        </button>
+        {espGuias.length === 0
           ? <p style={{ color: C.muted }}>Esta especialidad aún no tiene guías publicadas.</p>
           : espGuias.map(g => (
             <div key={g._id} style={{ ...S.card, marginBottom: 20 }}>
@@ -3500,28 +3488,73 @@ function EspecialidadDetalleView({ espId, member, isJefe, canDo, especialidades 
                 dangerouslySetInnerHTML={{ __html: g.contenido }} />
             </div>
           ))
-      ) : (
-        <div style={{ ...S.card, textAlign: "center", padding: 40 }}>
-          {!miAcceso && (
-            <>
-              <div style={{ color: C.muted, marginBottom: 20, fontSize: 14 }}>
-                El acceso a la formación de esta especialidad requiere aprobación del mando.
-              </div>
-              <button style={S.btn("primary")} onClick={solicitar}>Solicitar formación</button>
-            </>
-          )}
-          {miAcceso?.estado === "pendiente" && (
-            <div style={{ color: C.accentDim, fontSize: 14, letterSpacing: 1 }}>
-              ⏳ Solicitud en revisión por el mando.
-            </div>
-          )}
-          {miAcceso?.estado === "rechazado" && (
-            <div style={{ color: C.danger, fontSize: 14 }}>
-              Solicitud rechazada. Contacta con el mando para más información.
-            </div>
+        }
+      </div>
+    );
+  }
+
+  /* ── Vista portada (hero) ── */
+  return (
+    <div>
+      {/* Hero */}
+      <div style={{
+        position: "relative", width: "100%",
+        height: "calc(100vh - 96px - 80px)",
+        minHeight: 400, maxHeight: 700,
+        borderRadius: 10, overflow: "hidden", marginBottom: 32,
+      }}>
+        {esp.portadaUrl
+          ? <img src={esp.portadaUrl} alt={esp.nombre}
+              style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.55)" }} />
+          : <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${esp.color || C.red}33, ${C.bg})` }} />
+        }
+        {/* Overlay con nombre y descripción */}
+        <div style={{
+          position: "absolute", inset: 0,
+          display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center",
+          background: "linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.6) 100%)",
+          padding: "40px 60px", textAlign: "center",
+        }}>
+          <div style={{ width: 12, height: 12, borderRadius: "50%", background: esp.color || C.accent, marginBottom: 16 }} />
+          <h1 style={{
+            fontFamily: "'Oswald', sans-serif", fontSize: 52, fontWeight: 700,
+            color: C.accent, letterSpacing: 8, textTransform: "uppercase",
+            marginBottom: 16, lineHeight: 1.1,
+          }}>{esp.nombre}</h1>
+          {esp.descripcion && (
+            <p style={{ color: "rgba(232,224,208,0.75)", fontSize: 16, maxWidth: 560, lineHeight: 1.7, marginBottom: 0 }}>
+              {esp.descripcion}
+            </p>
           )}
         </div>
-      )}
+      </div>
+
+      {/* Botón de acción centrado debajo del hero */}
+      <div style={{ textAlign: "center", marginBottom: 40 }}>
+        {tieneAcceso && (
+          <button style={{ ...S.btn("primary"), padding: "14px 48px", fontSize: 16, letterSpacing: 3 }}
+            onClick={() => setMostrando("guias")}>
+            Acceder a la formación
+          </button>
+        )}
+        {!tieneAcceso && !miAcceso && (
+          <button style={{ ...S.btn("primary"), padding: "14px 48px", fontSize: 16, letterSpacing: 3 }}
+            onClick={solicitar}>
+            Solicitar formación
+          </button>
+        )}
+        {miAcceso?.estado === "pendiente" && (
+          <div style={{ color: C.accentDim, fontSize: 14, letterSpacing: 2, fontFamily: "'Share Tech Mono', monospace" }}>
+            ⏳ SOLICITUD EN REVISIÓN POR EL MANDO
+          </div>
+        )}
+        {miAcceso?.estado === "rechazado" && (
+          <div style={{ color: C.danger, fontSize: 14, letterSpacing: 1 }}>
+            Solicitud rechazada. Contacta con el mando.
+          </div>
+        )}
+      </div>
     </div>
   );
 }
