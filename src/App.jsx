@@ -1706,26 +1706,35 @@ function SalaFamaView({ salaFama, condecoraciones }) {
 function SalaFamaGrid({ salaFama, condecoraciones }) {
   const sorted = [...salaFama].sort((a, b) => (a.orden || 0) - (b.orden || 0));
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       {sorted.map(entry => {
         const decos = condecoraciones.filter(d => (entry.decoIds || []).includes(d._id));
         return (
-          <div key={entry._id} style={{ ...S.card, borderTop: `3px solid ${C.accent}`, textAlign: "center", padding: 24 }}>
-            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 20, color: C.accent, letterSpacing: 3, marginBottom: 4 }}>
+          <div key={entry._id} style={{ ...S.card, borderTop: `3px solid ${C.accent}` }}>
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 22, color: C.accent, letterSpacing: 3, marginBottom: 4 }}>
               {entry.memberHandle}
             </div>
             {entry.descripcion && (
-              <div style={{ color: C.muted, fontSize: 12, marginBottom: 16, lineHeight: 1.6 }}>{entry.descripcion}</div>
+              <div style={{ color: C.muted, fontSize: 13, marginBottom: 16, lineHeight: 1.6 }}>{entry.descripcion}</div>
             )}
             {decos.length > 0 && (
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
                 {decos.map(d => (
-                  d.imagenUrl
-                    ? <img key={d._id} src={d.imagenUrl} alt={d.nombre} title={d.nombre} style={{ width: 52, height: 52, objectFit: "contain" }} />
-                    : <span key={d._id} title={d.nombre} style={{ fontSize: 32 }}>🎖</span>
+                  <div key={d._id} style={{ display: "flex", alignItems: "center", gap: 14, background: "#ffffff08", borderRadius: 8, padding: "12px 16px", minWidth: 220 }}>
+                    {d.imagenUrl
+                      ? <img src={d.imagenUrl} alt={d.nombre} style={{ width: 56, height: 56, objectFit: "contain", flexShrink: 0 }} />
+                      : <span style={{ fontSize: 40, flexShrink: 0 }}>🎖</span>
+                    }
+                    <div>
+                      <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, color: C.text, letterSpacing: 1 }}>{d.nombre}</div>
+                      {d.descripcion && <div style={{ color: C.muted, fontSize: 12, marginTop: 3, lineHeight: 1.5 }}>{d.descripcion}</div>}
+                      {d.fecha && <div style={{ color: C.accentDim, fontSize: 11, marginTop: 3 }}>{new Date(d.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}</div>}
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
+            {decos.length === 0 && <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>Sin condecoraciones registradas.</p>}
           </div>
         );
       })}
@@ -2369,10 +2378,11 @@ function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
   const allMembers    = useCollection("members");
   const activeMembers = allMembers.filter(m => m.accessStatus === "activo");
 
-  const [selId,  setSelId]  = useState("");
-  const [nombre, setNombre] = useState("");
-  const [desc,   setDesc]   = useState("");
-  const [fecha,  setFecha]  = useState("");
+  const [selId,     setSelId]     = useState("");
+  const [nombre,    setNombre]    = useState("");
+  const [desc,      setDesc]      = useState("");
+  const [fecha,     setFecha]     = useState("");
+  const [imagenUrl, setImagenUrl] = useState("");
 
   const canEdit = isJefe || canDo("manage_members");
 
@@ -2385,9 +2395,10 @@ function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
       nombre:       nombre.trim(),
       descripcion:  desc.trim(),
       fecha:        fecha || null,
+      imagenUrl:    imagenUrl.trim() || null,
       otorgadoPor:  member.handle,
     });
-    setSelId(""); setNombre(""); setDesc(""); setFecha("");
+    setSelId(""); setNombre(""); setDesc(""); setFecha(""); setImagenUrl("");
   };
 
   const del = async d => {
@@ -2426,6 +2437,13 @@ function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
             <div>
               <label style={S.label}>Descripción / Motivo</label>
               <input style={S.input} value={desc} onChange={e => setDesc(e.target.value)} placeholder="Motivo de la distinción…" />
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={S.label}>URL de la imagen de la medalla</label>
+              <input style={S.input} value={imagenUrl} onChange={e => setImagenUrl(e.target.value)} placeholder="/condecoraciones/medalla_honor.png" />
+              {imagenUrl.trim() && (
+                <img src={imagenUrl.trim()} alt="preview" style={{ marginTop: 8, height: 64, objectFit: "contain", background: "#0004", borderRadius: 4, padding: 4 }} />
+              )}
             </div>
           </div>
           <button style={S.btn("primary")} onClick={save} disabled={!selId || !nombre.trim()}>Otorgar</button>
