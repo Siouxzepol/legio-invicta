@@ -662,7 +662,7 @@ function InicioView({ member, roles, operaciones, condecoraciones, orbatMiembros
     ? RANGOS_SIN_MI.includes(firstRank)
       ? `BIENVENIDO, ${firstRank.toUpperCase()}`
       : `BIENVENIDO, MI ${firstRank.toUpperCase()}`
-    : "BIENVENIDO, MILITAR";
+    : "BIENVENIDO, RECLUTA";
 
   const statCards = [
     { label: "Militares activos",   value: activos.length,          color: C.accent },
