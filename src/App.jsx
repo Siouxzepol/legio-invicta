@@ -923,6 +923,11 @@ function TabSolicitudes({ roles, member }) {
     const note = prompt("Motivo del rechazo (opcional):") || "";
     await fbUpd("members", m._id, { accessStatus: "rechazado", accessNote: note });
   };
+  const delEspAcceso = async a => {
+    if (!window.confirm(`¿Eliminar la solicitud de ${a.memberHandle} para ${a.espNombre}? El miembro podrá volver a solicitarla.`)) return;
+    await fbDel("especialidad_accesos", a._id);
+  };
+
   const setEspEstado = async (a, estado) => {
     const data = { estado, otorgadoPor: member?.handle || "mando", otorgadoAt: serverTimestamp() };
     if (estado === "rechazado" || estado === "suspendido") {
@@ -978,6 +983,7 @@ function TabSolicitudes({ roles, member }) {
               >
                 {ESP_ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
               </select>
+              <button style={{ ...S.btn("danger"), padding: "4px 10px", fontSize: 11 }} onClick={() => delEspAcceso(a)}>Eliminar</button>
             </div>
           </div>
         ))
