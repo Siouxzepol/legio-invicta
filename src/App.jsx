@@ -182,33 +182,25 @@ export default function App() {
   const salaMandos      = useCollection("sala_mandos", orderBy("orden"));
   const foroHilos       = useCollection("foro_hilos", orderBy("createdAt", "desc"));
 
-  /* Auth listener */
+  /* Auth listener — uses onSnapshot so member updates as soon as Firestore doc is created */
   useEffect(() => {
-    return onAuthStateChanged(auth, async fbUser => {
+    let unsubMember = null;
+    const unsubAuth = onAuthStateChanged(auth, fbUser => {
+      if (unsubMember) { unsubMember(); unsubMember = null; }
       if (fbUser) {
-        const snap = await getDoc(doc(db, "members", fbUser.uid));
-        if (snap.exists()) {
-          setUser(fbUser);
-          setMember({ _id: snap.id, ...snap.data() });
-        } else {
-          setUser(fbUser);
-          setMember(null);
-        }
+        setUser(fbUser);
+        unsubMember = onSnapshot(doc(db, "members", fbUser.uid), snap => {
+          setMember(snap.exists() ? { _id: snap.id, ...snap.data() } : null);
+          setLoading(false);
+        });
       } else {
         setUser(null);
         setMember(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
+    return () => { unsubAuth(); if (unsubMember) unsubMember(); };
   }, []);
-
-  /* Keep member in sync */
-  useEffect(() => {
-    if (!user) return;
-    return onSnapshot(doc(db, "members", user.uid), snap => {
-      if (snap.exists()) setMember({ _id: snap.id, ...snap.data() });
-    });
-  }, [user?.uid]);
 
   if (loading) return <Splash />;
 
@@ -412,10 +404,11 @@ function LoginScreen() {
     if (pin !== pin2) { setError("Los PINs no coinciden."); setBusy(false); return; }
     if (pin.length < 4) { setError("El PIN debe tener al menos 4 caracteres."); setBusy(false); return; }
     const handleKey = usuario.trim().toLowerCase();
+    let cred = null;
     try {
       const existing = await getDoc(doc(db, "handles", handleKey));
       if (existing.exists()) { setError("Ese usuario ya está en uso."); setBusy(false); return; }
-      const cred = await createUserWithEmailAndPassword(auth, correo.trim(), pin);
+      cred = await createUserWithEmailAndPassword(auth, correo.trim(), pin);
       await setDoc(doc(db, "handles", handleKey), { email: correo.trim(), uid: cred.user.uid });
       await setDoc(doc(db, "members", cred.user.uid), {
         handle: usuario.trim(),
@@ -428,8 +421,9 @@ function LoginScreen() {
         createdAt: serverTimestamp(),
       });
     } catch (err) {
+      if (cred) await cred.user.delete().catch(() => {});
       if (err.code === "auth/email-already-in-use") setError("Ese correo ya está en uso.");
-      else setError("Error al registrar. Inténtalo de nuevo.");
+      else setError(`Error al registrar: ${err.message}`);
     }
     setBusy(false);
   };
