@@ -678,8 +678,9 @@ function InicioView({ member, roles, operaciones, condecoraciones, orbatMiembros
       <div style={{
         height: "calc(100vh - 96px)",
         display: "flex", flexDirection: "column", justifyContent: "flex-end",
-        padding: "0 56px 32px",
+        padding: "0 56px 48px",
         position: "relative", overflow: "hidden",
+        boxSizing: "border-box",
       }}>
         {/* Gradiente inferior para legibilidad */}
         <div style={{
@@ -695,7 +696,7 @@ function InicioView({ member, roles, operaciones, condecoraciones, orbatMiembros
             <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: C.accent, letterSpacing: 4, marginBottom: 8, opacity: 0.8 }}>
               BIENVENIDO, LEGIONARIO
             </div>
-            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 64, fontWeight: 700, color: C.text, lineHeight: 1, letterSpacing: 2, marginBottom: 10 }}>
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 52, fontWeight: 700, color: C.text, lineHeight: 1, letterSpacing: 2, marginBottom: 8 }}>
               {member.displayName || member.handle}
             </div>
             {roleNames && (
@@ -704,11 +705,11 @@ function InicioView({ member, roles, operaciones, condecoraciones, orbatMiembros
               </div>
             )}
             {/* Stats en línea */}
-            <div style={{ display: "flex", gap: 40, marginTop: 28 }}>
+            <div style={{ display: "flex", gap: 32, marginTop: 20 }}>
               {statCards.map(s => (
                 <div key={s.label}>
-                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 42, color: s.color, lineHeight: 1 }}>{s.value}</div>
-                  <div style={{ color: "rgba(232,224,208,0.45)", fontSize: 10, letterSpacing: 2, fontFamily: "'Oswald', sans-serif", textTransform: "uppercase", marginTop: 4 }}>{s.label}</div>
+                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 34, color: s.color, lineHeight: 1 }}>{s.value}</div>
+                  <div style={{ color: "rgba(232,224,208,0.45)", fontSize: 10, letterSpacing: 2, fontFamily: "'Oswald', sans-serif", textTransform: "uppercase", marginTop: 3 }}>{s.label}</div>
                 </div>
               ))}
             </div>
