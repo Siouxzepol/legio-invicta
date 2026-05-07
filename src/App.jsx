@@ -161,6 +161,7 @@ export default function App() {
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
   const [view, setView]     = useState("inicio");
+  const [espId, setEspId]   = useState(null);
 
   const roles           = useCollection("roles");
   const orbatUnidades   = useCollection("orbat_unidades", orderBy("orden"));
@@ -265,7 +266,19 @@ export default function App() {
           onSelect={setView}
         />
         <span style={S.navItem(view === "foro")} onClick={() => setView("foro")}>Foro (Beta)</span>
-        <span style={S.navItem(view === "especialidades")} onClick={() => setView("especialidades")}>Especialidades</span>
+        <NavDropdown
+          label="Especialidades"
+          active={view === "especialidades" || view === "especialidad"}
+          items={[
+            { id: "especialidades", label: "Todas" },
+            ...especialidades.map(e => ({ id: `esp_${e._id}`, label: e.nombre })),
+          ]}
+          currentView={view === "especialidad" ? `esp_${espId}` : view}
+          onSelect={id => {
+            if (id.startsWith("esp_")) { setEspId(id.slice(4)); setView("especialidad"); }
+            else setView(id);
+          }}
+        />
         <span style={S.navItem(view === "doctrina")} onClick={() => setView("doctrina")}>Doctrina</span>
         <span style={S.navItem(view === "servicio")} onClick={() => setView("servicio")}>Mi Hoja</span>
         {canAdmin && (
@@ -284,6 +297,7 @@ export default function App() {
         {view === "orbat"          && <OrbatView unidades={orbatUnidades} miembros={orbatMiembros} roles={roles} especialidades={especialidades} condecoraciones={condecoraciones} salaFama={salaFama} />}
         {view === "sala_fama"      && <SalaFamaView salaFama={salaFama} condecoraciones={condecoraciones} />}
         {view === "especialidades" && <EspecialidadesView especialidades={especialidades} />}
+        {view === "especialidad"  && espId && <EspecialidadDetalleView espId={espId} member={member} isJefe={isJefe} canDo={canDo} especialidades={especialidades} />}
         {view === "doctrina"       && <DoctrinaView docs={doctrina} member={member} isJefe={isJefe} canDo={canDo} />}
         {view === "foro"           && <ForoView member={member} isJefe={isJefe} canDo={canDo} hilos={foroHilos} />}
         {view === "admin"          && <AdminPanel roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} canDo={canDo} orbatUnidades={orbatUnidades} orbatMiembros={orbatMiembros} doctrina={doctrina} member={member} especialidades={especialidades} operaciones={operaciones} condecoraciones={condecoraciones} salaFama={salaFama} salaMandos={salaMandos} foroHilos={foroHilos} />}
@@ -881,8 +895,10 @@ function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMi
 
 /* ── Tab: Solicitudes ── */
 function TabSolicitudes({ roles }) {
-  const members = useCollection("members");
-  const pending = members.filter(m => m.accessStatus === "pendiente");
+  const members     = useCollection("members");
+  const espAccesos  = useCollection("especialidad_accesos", orderBy("createdAt", "desc"));
+  const pending     = members.filter(m => m.accessStatus === "pendiente");
+  const pendingEsp  = espAccesos.filter(a => a.estado === "pendiente");
 
   const approve = async m => {
     await fbUpd("members", m._id, { accessStatus: "activo" });
@@ -891,10 +907,12 @@ function TabSolicitudes({ roles }) {
     const note = prompt("Motivo del rechazo (opcional):") || "";
     await fbUpd("members", m._id, { accessStatus: "rechazado", accessNote: note });
   };
+  const approveEsp = async a => fbUpd("especialidad_accesos", a._id, { estado: "aprobado" });
+  const rejectEsp  = async a => fbUpd("especialidad_accesos", a._id, { estado: "rechazado" });
 
   return (
     <div>
-      <h3 style={S.h3}>Solicitudes pendientes ({pending.length})</h3>
+      <h3 style={S.h3}>Solicitudes de registro ({pending.length})</h3>
       {pending.length === 0
         ? <p style={{ color: C.muted }}>Sin solicitudes pendientes.</p>
         : pending.map(m => (
@@ -907,6 +925,24 @@ function TabSolicitudes({ roles }) {
             </div>
             <button style={S.btn("primary")} onClick={() => approve(m)}>Aprobar</button>
             <button style={S.btn("danger")}  onClick={() => reject(m)}>Rechazar</button>
+          </div>
+        ))
+      }
+
+      <div style={S.divider} />
+
+      <h3 style={S.h3}>Solicitudes de formación ({pendingEsp.length})</h3>
+      {pendingEsp.length === 0
+        ? <p style={{ color: C.muted }}>Sin solicitudes de formación pendientes.</p>
+        : pendingEsp.map(a => (
+          <div key={a._id} style={{ ...S.card, display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontFamily: "'Share Tech Mono', monospace", color: C.accent }}>@{a.memberHandle}</span>
+              <span style={{ color: C.muted, fontSize: 13, marginLeft: 12 }}>solicita formación en</span>
+              <span style={{ ...S.badge(C.accent), marginLeft: 8 }}>{a.espNombre}</span>
+            </div>
+            <button style={S.btn("primary")} onClick={() => approveEsp(a)}>Aprobar</button>
+            <button style={S.btn("danger")}  onClick={() => rejectEsp(a)}>Rechazar</button>
           </div>
         ))
       }
@@ -1909,23 +1945,26 @@ function DoctrinaView({ docs, member, isJefe, canDo }) {
 /*  TAB ESPECIALIDADES (ADMIN)             */
 /* ─────────────────────────────────────── */
 function TabEspecialidades({ especialidades, isJefe, canDo }) {
-  const [nombre,      setNombre] = useState("");
-  const [descripcion, setDesc]   = useState("");
-  const [color,       setColor]  = useState("#C9A24A");
-  const [editId,      setEditId] = useState(null);
+  const guias       = useCollection("especialidad_guias", orderBy("orden"));
+  const [nombre,      setNombre]    = useState("");
+  const [descripcion, setDesc]      = useState("");
+  const [color,       setColor]     = useState("#C9A24A");
+  const [portadaUrl,  setPortada]   = useState("");
+  const [editId,      setEditId]    = useState(null);
+  const [gestionando, setGestionando] = useState(null); // esp object para gestionar guías
 
   const canEdit = isJefe || canDo("manage_roles");
 
   const save = async () => {
     if (!nombre.trim()) return;
-    const data = { nombre: nombre.trim(), descripcion: descripcion.trim(), color };
+    const data = { nombre: nombre.trim(), descripcion: descripcion.trim(), color, portadaUrl: portadaUrl.trim() };
     if (editId) {
       await fbUpd("especialidades", editId, data);
       setEditId(null);
     } else {
       await fbAdd("especialidades", data);
     }
-    setNombre(""); setDesc(""); setColor("#C9A24A");
+    setNombre(""); setDesc(""); setColor("#C9A24A"); setPortada("");
   };
 
   const del = async e => {
@@ -1933,31 +1972,49 @@ function TabEspecialidades({ especialidades, isJefe, canDo }) {
     await fbDel("especialidades", e._id);
   };
 
+  const startEdit = e => {
+    setEditId(e._id); setNombre(e.nombre); setDesc(e.descripcion || "");
+    setColor(e.color || "#C9A24A"); setPortada(e.portadaUrl || "");
+  };
+
+  if (gestionando) {
+    return <TabEspGuias esp={gestionando} guias={guias.filter(g => g.espId === gestionando._id)} onBack={() => setGestionando(null)} />;
+  }
+
   return (
-    <div style={{ maxWidth: 600 }}>
+    <div style={{ maxWidth: 700 }}>
       {canEdit && (
         <div style={{ ...S.card, marginBottom: 16 }}>
           <h3 style={S.h3}>{editId ? "Editar especialidad" : "Nueva especialidad"}</h3>
-          <div style={{ marginBottom: 12 }}>
-            <label style={S.label}>Nombre</label>
-            <input style={S.input} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Médico de combate" />
-          </div>
-          <div style={{ marginBottom: 12 }}>
-            <label style={S.label}>Descripción</label>
-            <input style={S.input} value={descripcion} onChange={e => setDesc(e.target.value)} placeholder="Breve descripción del rol…" />
-          </div>
-          <div style={{ marginBottom: 16 }}>
-            <label style={S.label}>Color</label>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <input type="color" value={color} onChange={e => setColor(e.target.value)}
-                style={{ width: 40, height: 32, border: "none", background: "none", cursor: "pointer" }} />
-              <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: C.muted }}>{color}</span>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div>
+              <label style={S.label}>Nombre</label>
+              <input style={S.input} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Médico de combate" />
+            </div>
+            <div>
+              <label style={S.label}>Color</label>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="color" value={color} onChange={e => setColor(e.target.value)}
+                  style={{ width: 40, height: 32, border: "none", background: "none", cursor: "pointer" }} />
+                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: C.muted }}>{color}</span>
+              </div>
+            </div>
+            <div>
+              <label style={S.label}>Descripción</label>
+              <input style={S.input} value={descripcion} onChange={e => setDesc(e.target.value)} placeholder="Breve descripción del rol…" />
+            </div>
+            <div>
+              <label style={S.label}>URL de portada</label>
+              <input style={S.input} value={portadaUrl} onChange={e => setPortada(e.target.value)} placeholder="/especialidades/medico.jpg" />
             </div>
           </div>
+          {portadaUrl.trim() && (
+            <img src={portadaUrl.trim()} alt="portada" style={{ height: 80, objectFit: "cover", borderRadius: 4, marginBottom: 12, width: "100%" }} />
+          )}
           <div style={{ display: "flex", gap: 8 }}>
             <button style={S.btn("primary")} onClick={save}>{editId ? "Guardar" : "Crear"}</button>
             {editId && (
-              <button style={S.btn("ghost")} onClick={() => { setEditId(null); setNombre(""); setDesc(""); setColor("#C9A24A"); }}>
+              <button style={S.btn("ghost")} onClick={() => { setEditId(null); setNombre(""); setDesc(""); setColor("#C9A24A"); setPortada(""); }}>
                 Cancelar
               </button>
             )}
@@ -1970,14 +2027,15 @@ function TabEspecialidades({ especialidades, isJefe, canDo }) {
         {especialidades.length === 0
           ? <p style={{ color: C.muted }}>Sin especialidades creadas.</p>
           : especialidades.map(e => (
-            <div key={e._id} style={{ padding: "10px 0", borderBottom: `1px solid ${C.border}` }}>
+            <div key={e._id} style={{ padding: "12px 0", borderBottom: `1px solid ${C.border}` }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ width: 10, height: 10, borderRadius: "50%", background: e.color || C.accent, flexShrink: 0 }} />
                 <span style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>{e.nombre}</span>
+                <span style={{ color: C.muted, fontSize: 12 }}>{guias.filter(g => g.espId === e._id).length} guías</span>
                 {canEdit && (
                   <>
-                    <button style={{ ...S.btn("ghost"), padding: "3px 8px", fontSize: 11 }}
-                      onClick={() => { setEditId(e._id); setNombre(e.nombre); setDesc(e.descripcion || ""); setColor(e.color || "#C9A24A"); }}>✎</button>
+                    <button style={{ ...S.btn("ghost"), padding: "4px 10px", fontSize: 12 }} onClick={() => setGestionando(e)}>Guías</button>
+                    <button style={{ ...S.btn("ghost"), padding: "3px 8px", fontSize: 11 }} onClick={() => startEdit(e)}>✎</button>
                     <button style={{ ...S.btn("danger"), padding: "3px 8px", fontSize: 11 }} onClick={() => del(e)}>✕</button>
                   </>
                 )}
@@ -1987,6 +2045,82 @@ function TabEspecialidades({ especialidades, isJefe, canDo }) {
           ))
         }
       </div>
+    </div>
+  );
+}
+
+function TabEspGuias({ esp, guias, onBack }) {
+  const sorted = [...guias].sort((a, b) => (a.orden || 0) - (b.orden || 0));
+  const [editId,    setEditId]    = useState(null);
+  const [titulo,    setTitulo]    = useState("");
+  const [contenido, setContenido] = useState("");
+
+  const startNew  = () => { setEditId("new"); setTitulo(""); setContenido(""); };
+  const startEdit = g => { setEditId(g._id); setTitulo(g.titulo); setContenido(g.contenido || ""); };
+  const cancel    = () => setEditId(null);
+
+  const save = async () => {
+    if (!titulo.trim()) return;
+    const maxOrden = guias.reduce((mx, g) => Math.max(mx, g.orden || 0), 0);
+    if (editId === "new") {
+      await fbAdd("especialidad_guias", { espId: esp._id, espNombre: esp.nombre, titulo: titulo.trim(), contenido, orden: maxOrden + 1 });
+    } else {
+      await fbUpd("especialidad_guias", editId, { titulo: titulo.trim(), contenido });
+    }
+    cancel();
+  };
+
+  const del = async g => {
+    if (!confirm(`¿Eliminar la guía "${g.titulo}"?`)) return;
+    await fbDel("especialidad_guias", g._id);
+  };
+
+  if (editId !== null) {
+    return (
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <button style={S.btn("ghost")} onClick={cancel}>← Volver</button>
+          <h2 style={{ ...S.h2, margin: 0 }}>{editId === "new" ? "Nueva guía" : "Editar guía"} — {esp.nombre}</h2>
+        </div>
+        <div style={{ ...S.card, marginBottom: 16 }}>
+          <div style={{ marginBottom: 12 }}>
+            <label style={S.label}>Título</label>
+            <input style={S.input} value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Título de la guía…" />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ ...S.label, marginBottom: 8 }}>Contenido</label>
+            <LegioEditor content={contenido} onChange={setContenido} minHeight={400} stickyTop={96} />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={S.btn("primary")} onClick={save}>Guardar</button>
+            <button style={S.btn("ghost")} onClick={cancel}>Cancelar</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button style={S.btn("ghost")} onClick={onBack}>← Especialidades</button>
+          <h2 style={{ ...S.h2, margin: 0 }}>Guías — {esp.nombre}</h2>
+        </div>
+        <button style={S.btn("primary")} onClick={startNew}>+ Añadir guía</button>
+      </div>
+      {sorted.length === 0
+        ? <p style={{ color: C.muted }}>Sin guías. Crea la primera con el botón de arriba.</p>
+        : sorted.map(g => (
+          <div key={g._id} style={{ ...S.card, display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, color: C.text }}>{g.titulo}</div>
+            </div>
+            <button style={{ ...S.btn("ghost"), padding: "4px 10px", fontSize: 12 }} onClick={() => startEdit(g)}>✎ Editar</button>
+            <button style={{ ...S.btn("danger"), padding: "4px 10px", fontSize: 12 }} onClick={() => del(g)}>✕</button>
+          </div>
+        ))
+      }
     </div>
   );
 }
@@ -3311,3 +3445,84 @@ function TabForo({ hilos, member, isJefe, canDo }) {
     </div>
   );
 }
+
+/* ─────────────────────────────────────── */
+/*  VISTA DETALLE ESPECIALIDAD             */
+/* ─────────────────────────────────────── */
+function EspecialidadDetalleView({ espId, member, isJefe, canDo, especialidades }) {
+  const esp     = especialidades.find(e => e._id === espId);
+  const guias   = useCollection("especialidad_guias", orderBy("orden"));
+  const accesos = useCollection("especialidad_accesos", orderBy("createdAt", "desc"));
+
+  if (!esp) return <p style={{ color: C.muted }}>Especialidad no encontrada.</p>;
+
+  const espGuias   = guias.filter(g => g.espId === espId).sort((a, b) => (a.orden || 0) - (b.orden || 0));
+  const miAcceso   = accesos.find(a => a.memberId === member._id && a.espId === espId);
+  const tieneAcceso = isJefe || canDo("manage_roles") || miAcceso?.estado === "aprobado";
+
+  const solicitar = async () => {
+    if (miAcceso) return;
+    await fbAdd("especialidad_accesos", {
+      memberId:     member._id,
+      memberHandle: member.handle,
+      espId,
+      espNombre:    esp.nombre,
+      estado:       "pendiente",
+    });
+  };
+
+  return (
+    <div>
+      {esp.portadaUrl ? (
+        <div style={{ width: "100%", height: 260, overflow: "hidden", borderRadius: 8, marginBottom: 28, position: "relative" }}>
+          <img src={esp.portadaUrl} alt={esp.nombre}
+            style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.7)" }} />
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "32px 32px 20px",
+            background: "linear-gradient(transparent, rgba(0,0,0,0.85))" }}>
+            <h2 style={{ ...S.h2, marginBottom: 4, fontSize: 32 }}>{esp.nombre}</h2>
+            {esp.descripcion && <p style={{ color: C.muted, margin: 0, fontSize: 14 }}>{esp.descripcion}</p>}
+          </div>
+        </div>
+      ) : (
+        <div style={{ marginBottom: 24 }}>
+          <h2 style={S.h2}>{esp.nombre}</h2>
+          {esp.descripcion && <p style={{ color: C.muted }}>{esp.descripcion}</p>}
+        </div>
+      )}
+
+      {tieneAcceso ? (
+        espGuias.length === 0
+          ? <p style={{ color: C.muted }}>Esta especialidad aún no tiene guías publicadas.</p>
+          : espGuias.map(g => (
+            <div key={g._id} style={{ ...S.card, marginBottom: 20 }}>
+              <h3 style={{ ...S.h3, marginBottom: 16 }}>{g.titulo}</h3>
+              <div className="codex-render" style={{ color: C.text, lineHeight: 1.8 }}
+                dangerouslySetInnerHTML={{ __html: g.contenido }} />
+            </div>
+          ))
+      ) : (
+        <div style={{ ...S.card, textAlign: "center", padding: 40 }}>
+          {!miAcceso && (
+            <>
+              <div style={{ color: C.muted, marginBottom: 20, fontSize: 14 }}>
+                El acceso a la formación de esta especialidad requiere aprobación del mando.
+              </div>
+              <button style={S.btn("primary")} onClick={solicitar}>Solicitar formación</button>
+            </>
+          )}
+          {miAcceso?.estado === "pendiente" && (
+            <div style={{ color: C.accentDim, fontSize: 14, letterSpacing: 1 }}>
+              ⏳ Solicitud en revisión por el mando.
+            </div>
+          )}
+          {miAcceso?.estado === "rechazado" && (
+            <div style={{ color: C.danger, fontSize: 14 }}>
+              Solicitud rechazada. Contacta con el mando para más información.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
