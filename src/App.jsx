@@ -36,13 +36,22 @@ const C = {
 /* ── Styles ── */
 const S = {
   page: {
-    minHeight: "100vh", background: C.bg, color: C.text,
+    minHeight: "100vh", color: C.text,
     fontFamily: "'Inter', sans-serif", fontSize: 15,
+    backgroundImage: "url(/imagenparainicio.jpg)",
+    backgroundSize: "cover", backgroundPosition: "center",
+    backgroundAttachment: "fixed", backgroundRepeat: "no-repeat",
+    position: "relative",
+  },
+  pageOverlay: {
+    position: "fixed", inset: 0, zIndex: 0,
+    background: "rgba(6,5,4,0.72)",
+    pointerEvents: "none",
   },
   nav: {
     position: "sticky", top: 0, zIndex: 100, height: 96,
-    background: "rgba(42,10,10,0.97)", borderBottom: `1px solid ${C.border}`,
-    backdropFilter: "blur(10px)",
+    background: "rgba(10,8,6,0.55)", borderBottom: "1px solid rgba(201,162,74,0.12)",
+    backdropFilter: "blur(14px)",
     display: "flex", alignItems: "center", padding: "0 40px", gap: 40,
   },
   navLogo: {
@@ -235,6 +244,7 @@ export default function App() {
 
   return (
     <div style={S.page}>
+      <div style={S.pageOverlay} />
       <nav style={S.nav}>
         <div style={S.navLogo}>
           <img src="/logo.png" alt="Legio Invicta" style={{ height: 64, width: 64, borderRadius: "50%", border: `1px solid ${C.border}` }} />
@@ -287,17 +297,21 @@ export default function App() {
         </span>
       </nav>
 
-      <div style={{ padding: "40px 36px" }}>
+      <div style={{ position: "relative", zIndex: 1 }}>
         {view === "inicio"         && <InicioView member={member} roles={roles} operaciones={operaciones} condecoraciones={condecoraciones} orbatMiembros={orbatMiembros} salaMandos={salaMandos} />}
-        {view === "servicio"       && <HojaServicioView member={member} roles={roles} operaciones={operaciones} orbatMiembros={orbatMiembros} orbatUnidades={orbatUnidades} especialidades={especialidades} condecoraciones={condecoraciones} />}
-        {view === "operaciones"    && <OperacionesView ops={operaciones} member={member} />}
-        {view === "calendario"     && <CalendarioView ops={operaciones} member={member} />}
-        {view === "orbat"          && <OrbatView unidades={orbatUnidades} miembros={orbatMiembros} roles={roles} especialidades={especialidades} condecoraciones={condecoraciones} salaFama={salaFama} />}
-        {view === "sala_fama"      && <SalaFamaView salaFama={salaFama} condecoraciones={condecoraciones} />}
-        {view === "especialidades" && <EspecialidadesView especialidades={especialidades} />}
-        {view === "especialidad"  && espId && <EspecialidadDetalleView espId={espId} member={member} isJefe={isJefe} canDo={canDo} especialidades={especialidades} />}
-        {view === "foro"           && <ForoView member={member} isJefe={isJefe} canDo={canDo} hilos={foroHilos} />}
-        {view === "admin"          && <AdminPanel roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} canDo={canDo} orbatUnidades={orbatUnidades} orbatMiembros={orbatMiembros} member={member} especialidades={especialidades} operaciones={operaciones} condecoraciones={condecoraciones} salaFama={salaFama} salaMandos={salaMandos} foroHilos={foroHilos} />}
+        {view !== "inicio" && (
+          <div style={{ padding: "40px 36px" }}>
+            {view === "servicio"       && <HojaServicioView member={member} roles={roles} operaciones={operaciones} orbatMiembros={orbatMiembros} orbatUnidades={orbatUnidades} especialidades={especialidades} condecoraciones={condecoraciones} />}
+            {view === "operaciones"    && <OperacionesView ops={operaciones} member={member} />}
+            {view === "calendario"     && <CalendarioView ops={operaciones} member={member} />}
+            {view === "orbat"          && <OrbatView unidades={orbatUnidades} miembros={orbatMiembros} roles={roles} especialidades={especialidades} condecoraciones={condecoraciones} salaFama={salaFama} />}
+            {view === "sala_fama"      && <SalaFamaView salaFama={salaFama} condecoraciones={condecoraciones} />}
+            {view === "especialidades" && <EspecialidadesView especialidades={especialidades} />}
+            {view === "especialidad"  && espId && <EspecialidadDetalleView espId={espId} member={member} isJefe={isJefe} canDo={canDo} especialidades={especialidades} />}
+            {view === "foro"           && <ForoView member={member} isJefe={isJefe} canDo={canDo} hilos={foroHilos} />}
+            {view === "admin"          && <AdminPanel roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} canDo={canDo} orbatUnidades={orbatUnidades} orbatMiembros={orbatMiembros} member={member} especialidades={especialidades} operaciones={operaciones} condecoraciones={condecoraciones} salaFama={salaFama} salaMandos={salaMandos} foroHilos={foroHilos} />}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -660,28 +674,79 @@ function InicioView({ member, roles, operaciones, condecoraciones, orbatMiembros
 
   return (
     <div>
-      {/* Bienvenida */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28, flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h2 style={{ ...S.h2, margin: 0 }}>Tablero de Mandos</h2>
-          <div style={{ color: C.muted, fontSize: 13, marginTop: 4, fontFamily: "'Share Tech Mono', monospace" }}>
-            Bienvenido, @{member.handle}{roleNames ? ` · ${roleNames}` : ""}
+      {/* HERO — pantalla completa */}
+      <div style={{
+        height: "calc(100vh - 96px)",
+        display: "flex", flexDirection: "column", justifyContent: "flex-end",
+        padding: "0 56px 56px",
+        position: "relative",
+      }}>
+        {/* Gradiente inferior para legibilidad */}
+        <div style={{
+          position: "absolute", inset: 0,
+          background: "linear-gradient(to top, rgba(6,5,4,0.92) 0%, rgba(6,5,4,0.3) 50%, transparent 100%)",
+          pointerEvents: "none",
+        }} />
+
+        {/* Contenido hero */}
+        <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 40, flexWrap: "wrap" }}>
+          {/* Izquierda — nombre y rango */}
+          <div>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: C.accent, letterSpacing: 4, marginBottom: 8, opacity: 0.8 }}>
+              BIENVENIDO, LEGIONARIO
+            </div>
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 64, fontWeight: 700, color: C.text, lineHeight: 1, letterSpacing: 2, marginBottom: 10 }}>
+              {member.displayName || member.handle}
+            </div>
+            {roleNames && (
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 13, color: C.accent, letterSpacing: 3 }}>
+                {roleNames}
+              </div>
+            )}
+            {/* Stats en línea */}
+            <div style={{ display: "flex", gap: 40, marginTop: 28 }}>
+              {statCards.map(s => (
+                <div key={s.label}>
+                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 42, color: s.color, lineHeight: 1 }}>{s.value}</div>
+                  <div style={{ color: "rgba(232,224,208,0.45)", fontSize: 10, letterSpacing: 2, fontFamily: "'Oswald', sans-serif", textTransform: "uppercase", marginTop: 4 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Derecha — próximas operaciones */}
+          <div style={{
+            background: "rgba(17,18,20,0.7)", backdropFilter: "blur(12px)",
+            border: `1px solid rgba(201,162,74,0.15)`, borderRadius: 10,
+            padding: "20px 24px", minWidth: 280, maxWidth: 360,
+          }}>
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.accent, letterSpacing: 3, textTransform: "uppercase", marginBottom: 14 }}>
+              Próximas operaciones
+            </div>
+            {proximas.length === 0 ? (
+              <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>Sin operaciones planificadas.</p>
+            ) : proximas.map(op => {
+              const est = OP_ESTADOS[op.estado] || OP_ESTADOS.planificada;
+              return (
+                <div key={op._id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: `1px solid rgba(201,162,74,0.08)` }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13 }}>{op.nombre}</div>
+                    <div style={{ display: "flex", gap: 6, marginTop: 3, alignItems: "center" }}>
+                      <span style={S.badge(est.color)}>{est.label}</span>
+                      {op.fecha && <span style={{ color: C.muted, fontSize: 11 }}>{new Date(op.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}</span>}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
 
-      {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 28 }}>
-        {statCards.map(s => (
-          <div key={s.label} style={{ ...S.card, textAlign: "center", padding: "20px 16px" }}>
-            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 38, color: s.color, lineHeight: 1, marginBottom: 8 }}>{s.value}</div>
-            <div style={{ color: C.muted, fontSize: 11, letterSpacing: 1, fontFamily: "'Oswald', sans-serif", textTransform: "uppercase" }}>{s.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Dos columnas */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>
+      {/* Sección inferior — cards */}
+      <div style={{ padding: "40px 56px" }}>
+        {/* Dos columnas */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>
 
         {/* Próximas operaciones */}
         <div style={S.card}>
@@ -792,6 +857,7 @@ function InicioView({ member, roles, operaciones, condecoraciones, orbatMiembros
         </div>
       ))}
 
+      </div>{/* fin padding sección inferior */}
     </div>
   );
 }
