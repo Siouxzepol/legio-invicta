@@ -897,7 +897,9 @@ function TabSolicitudes({ roles, member }) {
   const pending     = members.filter(m => m.accessStatus === "pendiente");
 
   const approve = async m => {
-    await fbUpd("members", m._id, { accessStatus: "activo" });
+    const reclutas = roles.find(r => r.name.toLowerCase() === "recluta");
+    const roleIds  = reclutas ? [reclutas._id] : [];
+    await fbUpd("members", m._id, { accessStatus: "activo", ...(roleIds.length ? { roleIds } : {}) });
   };
   const reject = async m => {
     const note = prompt("Motivo del rechazo (opcional):") || "";
