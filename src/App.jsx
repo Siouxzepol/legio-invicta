@@ -50,7 +50,7 @@ const S = {
   },
   nav: {
     position: "sticky", top: 0, zIndex: 100, height: 96,
-    background: "rgba(10,8,6,0.55)", borderBottom: "1px solid rgba(201,162,74,0.12)",
+    background: "rgba(55,8,8,0.72)", borderBottom: "1px solid rgba(201,162,74,0.12)",
     backdropFilter: "blur(14px)",
     display: "flex", alignItems: "center", padding: "0 40px", gap: 40,
   },
@@ -678,8 +678,8 @@ function InicioView({ member, roles, operaciones, condecoraciones, orbatMiembros
       <div style={{
         height: "calc(100vh - 96px)",
         display: "flex", flexDirection: "column", justifyContent: "flex-end",
-        padding: "0 56px 56px",
-        position: "relative",
+        padding: "0 56px 32px",
+        position: "relative", overflow: "hidden",
       }}>
         {/* Gradiente inferior para legibilidad */}
         <div style={{
