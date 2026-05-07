@@ -131,15 +131,17 @@ const OP_ESTADOS = {
 
 /* ── Permisos disponibles ── */
 const ALL_PERMS = [
-  { id: "manage_members",       label: "Gestionar militares" },
-  { id: "manage_roles",         label: "Gestionar rangos" },
-  { id: "approve_requests",     label: "Aprobar solicitudes de registro" },
-  { id: "manage_especialidades",label: "Gestionar especialidades y formación" },
-  { id: "manage_ops",       label: "Gestionar operaciones" },
-  { id: "post_sitrep",      label: "Publicar SITREP" },
-  { id: "manage_orbat",     label: "Gestionar ORBAT" },
-  { id: "forum_post",       label: "Publicar en el foro" },
-  { id: "forum_mod",        label: "Moderar el foro" },
+  { id: "approve_requests",      label: "Aprobar solicitudes de registro" },
+  { id: "manage_roles",          label: "Gestionar rangos" },
+  { id: "manage_members",        label: "Gestionar militares (bajas y reinstauración)" },
+  { id: "manage_orbat",          label: "Gestionar ORBAT" },
+  { id: "manage_ops",            label: "Gestionar operaciones" },
+  { id: "manage_especialidades", label: "Gestionar especialidades y formación" },
+  { id: "manage_condecoraciones",label: "Otorgar y revocar condecoraciones" },
+  { id: "manage_sala_fama",      label: "Gestionar Sala de la Fama" },
+  { id: "post_sitrep",           label: "Publicar SITREP" },
+  { id: "forum_post",            label: "Publicar en el foro" },
+  { id: "forum_mod",             label: "Moderar el foro" },
 ];
 
 /* ── Helpers Firestore ── */
@@ -230,7 +232,7 @@ export default function App() {
   if (member.accessStatus === "rechazado") return <RejectedScreen member={member} />;
   if (member.accessStatus === "expulsado") return <ExpelledScreen member={member} />;
 
-  const canAdmin = isJefe || canDo("approve_requests") || canDo("manage_roles") || canDo("manage_members") || canDo("manage_orbat") || canDo("manage_ops") || canDo("forum_mod") || canDo("manage_especialidades");
+  const canAdmin = isJefe || canDo("approve_requests") || canDo("manage_roles") || canDo("manage_members") || canDo("manage_orbat") || canDo("manage_ops") || canDo("forum_mod") || canDo("manage_especialidades") || canDo("manage_condecoraciones") || canDo("manage_sala_fama");
   const orbatActive = view === "orbat" || view === "sala_fama";
   const opsActive   = view === "operaciones" || view === "calendario";
 
@@ -831,8 +833,8 @@ function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMi
     { id: "bajas",          label: "Bajas",           show: isJefe || canDo("manage_members") },
     { id: "orbat",             label: "ORBAT",            show: isJefe || canDo("manage_orbat") },
     { id: "operaciones",       label: "Operaciones",      show: isJefe || canDo("manage_ops") },
-    { id: "condecoraciones",   label: "Condecoraciones",  show: isJefe || canDo("manage_members") },
-    { id: "sala_fama",         label: "Sala de la Fama",  show: isJefe || canDo("manage_members") },
+    { id: "condecoraciones",   label: "Condecoraciones",  show: isJefe || canDo("manage_condecoraciones") },
+    { id: "sala_fama",         label: "Sala de la Fama",  show: isJefe || canDo("manage_sala_fama") },
     { id: "sala_mandos",       label: "Sala de Mandos",   show: isJefe },
     { id: "foro",              label: "Foro",             show: isJefe || canDo("forum_mod") },
   ].filter(t => t.show);
@@ -2255,7 +2257,7 @@ function TabSalaFama({ salaFama, condecoraciones, isJefe, canDo }) {
   const [desc,    setDesc]    = useState("");
   const [decoIds, setDecoIds] = useState([]);
 
-  const canEdit = isJefe || canDo("manage_members");
+  const canEdit = isJefe || canDo("manage_sala_fama");
   const sorted  = [...salaFama].sort((a, b) => (a.orden || 0) - (b.orden || 0));
 
   /* Condecoraciones del miembro seleccionado */
@@ -2391,7 +2393,7 @@ function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
   const [fecha,     setFecha]     = useState("");
   const [imagenUrl, setImagenUrl] = useState("");
 
-  const canEdit = isJefe || canDo("manage_members");
+  const canEdit = isJefe || canDo("manage_condecoraciones");
 
   const save = async () => {
     if (!selId || !nombre.trim()) return;
