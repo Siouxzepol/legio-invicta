@@ -435,7 +435,7 @@ function LoginScreen() {
   return (
     <div style={{
       minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
-      backgroundImage: "url(/pantallaregistro.png)",
+      backgroundImage: "url(/pantallaregistro.jpg)",
       backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat",
       position: "relative",
     }}>
