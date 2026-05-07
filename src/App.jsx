@@ -727,7 +727,7 @@ function InicioView({ member, roles, operaciones, condecoraciones, orbatMiembros
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
         pointerEvents: "none",
       }}>
-        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: C.accent, letterSpacing: 5, marginBottom: 12, opacity: 0.7 }}>
+        <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 22, color: C.accent, letterSpacing: 6, marginBottom: 14, opacity: 0.85, textTransform: "uppercase" }}>
           {welcomeText}
         </div>
         <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 64, fontWeight: 700, color: C.text, lineHeight: 1, letterSpacing: 4, textAlign: "center", textShadow: "0 2px 20px rgba(0,0,0,0.8)" }}>
