@@ -894,11 +894,26 @@ function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMi
 }
 
 /* ── Tab: Solicitudes ── */
+const ESP_ESTADOS = [
+  { value: "pendiente",      label: "Pendiente",       color: "#f59e0b" },
+  { value: "tramitando",     label: "Tramitando",      color: "#3b82f6" },
+  { value: "curso_por_hacer",label: "Curso por hacer", color: "#8b5cf6" },
+  { value: "aprobado",       label: "Aprobado",        color: "#4caf50" },
+  { value: "suspendido",     label: "Suspendido",      color: "#f97316" },
+  { value: "rechazado",      label: "Rechazado",       color: "#c0392b" },
+];
+
+function espEstadoColor(estado) {
+  return ESP_ESTADOS.find(e => e.value === estado)?.color || C.muted;
+}
+function espEstadoLabel(estado) {
+  return ESP_ESTADOS.find(e => e.value === estado)?.label || estado;
+}
+
 function TabSolicitudes({ roles }) {
   const members     = useCollection("members");
   const espAccesos  = useCollection("especialidad_accesos", orderBy("createdAt", "desc"));
   const pending     = members.filter(m => m.accessStatus === "pendiente");
-  const pendingEsp  = espAccesos.filter(a => a.estado === "pendiente");
 
   const approve = async m => {
     await fbUpd("members", m._id, { accessStatus: "activo" });
@@ -907,8 +922,7 @@ function TabSolicitudes({ roles }) {
     const note = prompt("Motivo del rechazo (opcional):") || "";
     await fbUpd("members", m._id, { accessStatus: "rechazado", accessNote: note });
   };
-  const approveEsp = async a => fbUpd("especialidad_accesos", a._id, { estado: "aprobado" });
-  const rejectEsp  = async a => fbUpd("especialidad_accesos", a._id, { estado: "rechazado" });
+  const setEspEstado = async (a, estado) => fbUpd("especialidad_accesos", a._id, { estado });
 
   return (
     <div>
@@ -931,18 +945,27 @@ function TabSolicitudes({ roles }) {
 
       <div style={S.divider} />
 
-      <h3 style={S.h3}>Solicitudes de formación ({pendingEsp.length})</h3>
-      {pendingEsp.length === 0
-        ? <p style={{ color: C.muted }}>Sin solicitudes de formación pendientes.</p>
-        : pendingEsp.map(a => (
-          <div key={a._id} style={{ ...S.card, display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
-            <div style={{ flex: 1 }}>
+      <h3 style={S.h3}>Formación — gestión de accesos ({espAccesos.length})</h3>
+      {espAccesos.length === 0
+        ? <p style={{ color: C.muted }}>Sin solicitudes de formación.</p>
+        : espAccesos.map(a => (
+          <div key={a._id} style={{ ...S.card, display: "flex", alignItems: "center", gap: 16, marginBottom: 12, flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 200 }}>
               <span style={{ fontFamily: "'Share Tech Mono', monospace", color: C.accent }}>@{a.memberHandle}</span>
-              <span style={{ color: C.muted, fontSize: 13, marginLeft: 12 }}>solicita formación en</span>
-              <span style={{ ...S.badge(C.accent), marginLeft: 8 }}>{a.espNombre}</span>
+              <span style={{ ...S.badge(C.accentDim), marginLeft: 10 }}>{a.espNombre}</span>
             </div>
-            <button style={S.btn("primary")} onClick={() => approveEsp(a)}>Aprobar</button>
-            <button style={S.btn("danger")}  onClick={() => rejectEsp(a)}>Rechazar</button>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ ...S.badge(espEstadoColor(a.estado)), minWidth: 120, textAlign: "center" }}>
+                {espEstadoLabel(a.estado)}
+              </span>
+              <select
+                value={a.estado}
+                onChange={e => setEspEstado(a, e.target.value)}
+                style={{ ...S.input, padding: "4px 8px", width: "auto", fontSize: 12 }}
+              >
+                {ESP_ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+              </select>
+            </div>
           </div>
         ))
       }
@@ -2133,6 +2156,7 @@ function HojaServicioView({ member, roles, operaciones, orbatMiembros, orbatUnid
   const unidad      = orbatEntry ? orbatUnidades.find(u => u._id === orbatEntry.unidadId) : null;
   const memberRoles = roles.filter(r => getMemberRoleIds(member).includes(r._id));
   const memberEsps  = orbatEntry ? especialidades.filter(e => (orbatEntry.espIds || []).includes(e._id)) : [];
+  const misAccesos  = useCollection("especialidad_accesos", orderBy("createdAt", "desc")).filter(a => a.memberId === member._id);
 
   const opsHistory     = operaciones.filter(op => op.asistencia?.[member._id]);
   const opsConfirmadas = opsHistory.filter(op => op.asistencia[member._id] === "confirmada");
@@ -2184,6 +2208,21 @@ function HojaServicioView({ member, roles, operaciones, orbatMiembros, orbatUnid
           </div>
         ))}
       </div>
+
+      {/* Especialidades */}
+      {misAccesos.length > 0 && (
+        <div style={{ ...S.card, marginBottom: 24 }}>
+          <h3 style={S.h3}>Formación especializada</h3>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+            {misAccesos.map(a => (
+              <div key={a._id} style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 16px", minWidth: 180 }}>
+                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, color: C.text, marginBottom: 6 }}>{a.espNombre}</div>
+                <span style={{ ...S.badge(espEstadoColor(a.estado)), fontSize: 11 }}>{espEstadoLabel(a.estado)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Historial + Condecoraciones */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
