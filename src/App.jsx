@@ -678,7 +678,7 @@ function InicioView({ member, roles, operaciones, condecoraciones, orbatMiembros
       <div style={{
         height: "calc(100vh - 96px)",
         display: "flex", flexDirection: "column", justifyContent: "flex-end",
-        padding: "0 56px 48px",
+        padding: "0 56px 90px",
         position: "relative", overflow: "hidden",
         boxSizing: "border-box",
       }}>
