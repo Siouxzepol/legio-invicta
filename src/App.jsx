@@ -243,7 +243,7 @@ export default function App() {
   const opsActive   = view === "operaciones" || view === "calendario";
 
   return (
-    <div style={S.page}>
+    <div style={{ ...S.page, overflowY: view === "inicio" ? "hidden" : "auto" }}>
       <div style={S.pageOverlay} />
       <nav style={S.nav}>
         <div style={S.navLogo}>
