@@ -879,7 +879,7 @@ function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMi
           </button>
         ))}
       </div>
-      {tab === "solicitudes"    && <TabSolicitudes roles={roles} />}
+      {tab === "solicitudes"    && <TabSolicitudes roles={roles} member={member} />}
       {tab === "rangos"         && <TabRangos roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} />}
       {tab === "especialidades" && <TabEspecialidades especialidades={especialidades} isJefe={isJefe} canDo={canDo} />}
       {tab === "bajas"          && <TabBajas />}
@@ -911,7 +911,7 @@ function espEstadoLabel(estado) {
   return ESP_ESTADOS.find(e => e.value === estado)?.label || estado;
 }
 
-function TabSolicitudes({ roles }) {
+function TabSolicitudes({ roles, member }) {
   const members     = useCollection("members");
   const espAccesos  = useCollection("especialidad_accesos", orderBy("createdAt", "desc"));
   const pending     = members.filter(m => m.accessStatus === "pendiente");
@@ -923,7 +923,11 @@ function TabSolicitudes({ roles }) {
     const note = prompt("Motivo del rechazo (opcional):") || "";
     await fbUpd("members", m._id, { accessStatus: "rechazado", accessNote: note });
   };
-  const setEspEstado = async (a, estado) => fbUpd("especialidad_accesos", a._id, { estado });
+  const setEspEstado = async (a, estado) => fbUpd("especialidad_accesos", a._id, {
+    estado,
+    otorgadoPor: member?.handle || "mando",
+    otorgadoAt:  serverTimestamp(),
+  });
 
   return (
     <div>
@@ -954,6 +958,9 @@ function TabSolicitudes({ roles }) {
             <div style={{ flex: 1, minWidth: 200 }}>
               <span style={{ fontFamily: "'Share Tech Mono', monospace", color: C.accent }}>{a.memberHandle}</span>
               <span style={{ ...S.badge(C.accentDim), marginLeft: 10 }}>{a.espNombre}</span>
+              {a.otorgadoPor && (
+                <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>Gestionado por {a.otorgadoPor}</div>
+              )}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ ...S.badge(espEstadoColor(a.estado)), minWidth: 120, textAlign: "center" }}>
@@ -2176,15 +2183,10 @@ function HojaServicioView({ member, roles, operaciones, orbatMiembros, orbatUnid
                 @{member.handle}
               </div>
             )}
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {memberRoles.map(r => <span key={r._id} style={S.badge(C.accent)}>{r.name}</span>)}
               {!memberRoles.length && <span style={{ color: C.muted, fontSize: 12 }}>Sin rango asignado</span>}
             </div>
-            {memberEsps.length > 0 && (
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {memberEsps.map(e => <span key={e._id} style={S.badge(e.color || C.accentDim)}>{e.nombre}</span>)}
-              </div>
-            )}
           </div>
           {unidad && (
             <div style={{ textAlign: "right" }}>
@@ -2272,6 +2274,9 @@ function HojaServicioView({ member, roles, operaciones, orbatMiembros, orbatUnid
                 <div key={a._id} style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 16px", minWidth: 180 }}>
                   <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, color: C.text, marginBottom: 6 }}>{a.espNombre}</div>
                   <span style={{ ...S.badge(espEstadoColor(a.estado)), fontSize: 11 }}>{espEstadoLabel(a.estado)}</span>
+                  {a.otorgadoPor && (
+                    <div style={{ color: C.muted, fontSize: 11, marginTop: 6 }}>por {a.otorgadoPor}</div>
+                  )}
                 </div>
               ))}
             </div>
