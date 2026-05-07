@@ -879,6 +879,7 @@ const ESP_ESTADOS = [
   { value: "pendiente",      label: "Pendiente",       color: "#f59e0b" },
   { value: "tramitando",     label: "Tramitando",      color: "#3b82f6" },
   { value: "curso_por_hacer",label: "Curso por hacer", color: "#8b5cf6" },
+  { value: "admitido",       label: "Admitido",        color: "#06b6d4" },
   { value: "aprobado",       label: "Aprobado",        color: "#4caf50" },
   { value: "suspendido",     label: "Suspendido",      color: "#f97316" },
   { value: "rechazado",      label: "Rechazado",       color: "#c0392b" },
@@ -3348,7 +3349,7 @@ function EspecialidadDetalleView({ espId, member, isJefe, canDo, especialidades 
 
   const espGuias    = guias.filter(g => g.espId === espId).sort((a, b) => (a.orden || 0) - (b.orden || 0));
   const miAcceso    = accesos.find(a => a.memberId === member._id && a.espId === espId);
-  const tieneAcceso = miAcceso?.estado === "aprobado";
+  const tieneAcceso = miAcceso?.estado === "aprobado" || miAcceso?.estado === "admitido";
 
   const solicitar = async () => {
     if (miAcceso) return;
