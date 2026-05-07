@@ -1594,9 +1594,6 @@ function OrbatView({ unidades, miembros, roles, especialidades, condecoraciones,
           </div>
         )}
         <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, color: C.text }}>{m.nombre}</div>
-        {m.handle && (
-          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: bc }}>@{m.handle}</div>
-        )}
         {(m.espIds || []).length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 3, justifyContent: "center", marginTop: 3 }}>
             {(m.espIds || []).map(id => {
@@ -2174,7 +2171,7 @@ function HojaServicioView({ member, roles, operaciones, orbatMiembros, orbatUnid
             <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 22, marginBottom: 4 }}>
               {member.displayName || member.handle}
             </div>
-            {member.displayName && (
+            {member.displayName && member.displayName !== member.handle && (
               <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: C.accent, marginBottom: 10 }}>
                 @{member.handle}
               </div>
