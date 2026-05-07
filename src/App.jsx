@@ -1665,8 +1665,12 @@ function OrbatView({ unidades, miembros, roles, especialidades, condecoraciones,
                   <div className="orbat-units-row">
                     {nivel.map(u => {
                       const color = u.color || C.accent;
+                      const getRangoOrden = m => {
+                        const rs = getMemberRoles(m.memberId);
+                        return rs.length ? Math.max(...rs.map(r => r.orden ?? 0)) : -1;
+                      };
                       const uM = [...miembros.filter(m => m.unidadId === u._id)]
-                        .sort((a, b) => (a.orden || 0) - (b.orden || 0));
+                        .sort((a, b) => getRangoOrden(b) - getRangoOrden(a));
                       const subHijos = hijos(u._id);
                       return (
                         <div key={u._id} className="orbat-unit-col">
