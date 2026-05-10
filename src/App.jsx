@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, createContext, useContext } from "react";
 import LegioEditor from "./LegioEditor";
 import {
   collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
@@ -166,6 +166,18 @@ const fbDel = (col, id)         => deleteDoc(doc(db, col, id));
 /* ── Multi-rol helpers ── */
 const getMemberRoleIds = m => m.roleIds?.length ? m.roleIds : (m.roleId ? [m.roleId] : []);
 
+/* ── Mobile detection ── */
+const MobileCtx = createContext(false);
+const useIsMobile = () => {
+  const [mob, setMob] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const fn = () => setMob(window.innerWidth < 768);
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+  return mob;
+};
+
 /* ─────────────────────────────────────── */
 /*  APP                                    */
 /* ─────────────────────────────────────── */
@@ -174,7 +186,9 @@ export default function App() {
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
   const [view, setView]     = useState("inicio");
-  const [espId, setEspId]   = useState(null);
+  const [espId, setEspId]        = useState(null);
+  const isMobile                 = useIsMobile();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const roles           = useCollection("roles");
   const orbatUnidades   = useCollection("orbat_unidades", orderBy("orden"));
@@ -239,64 +253,115 @@ export default function App() {
   const opsActive   = view === "operaciones" || view === "calendario";
 
   return (
-    <div style={{ ...S.page, overflowY: view === "inicio" ? "hidden" : "auto" }}>
+    <MobileCtx.Provider value={isMobile}>
+    <div style={{ ...S.page, overflowY: isMobile || view !== "inicio" ? "auto" : "hidden" }}>
       <div style={S.pageOverlay} />
-      <nav style={S.nav}>
-        <div style={S.navLogo}>
-          <img src="/logo.png" alt="Legio Invicta" style={{ height: 64, width: 64, borderRadius: "50%", border: `1px solid ${C.border}` }} />
-          <div>
-            <span style={S.navLogoText}>LEGIO INVICTA</span>
-            <span style={S.navLogoSub}>HONOR Y VICTORIA</span>
+
+      {/* Menú móvil overlay */}
+      {isMobile && mobileMenuOpen && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 999,
+          background: "rgba(8,6,4,0.97)", backdropFilter: "blur(14px)",
+          display: "flex", flexDirection: "column",
+          padding: "20px 28px 40px", overflowY: "auto",
+        }}>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 28 }}>
+            <button onClick={() => setMobileMenuOpen(false)}
+              style={{ background: "none", border: "none", color: C.accent, fontSize: 28, cursor: "pointer", lineHeight: 1 }}>✕</button>
           </div>
+          {[
+            { label: "Inicio",          fn: () => setView("inicio") },
+            { label: "Jerarquía",       fn: () => setView("orbat") },
+            { label: "Sala de la Fama", fn: () => setView("sala_fama") },
+            { label: "Operaciones",     fn: () => setView("operaciones") },
+            { label: "Calendario",      fn: () => setView("calendario") },
+            { label: "Foro",            fn: () => setView("foro") },
+            { label: "Especialidades",  fn: () => setView("especialidades") },
+            { label: "Mi Hoja",         fn: () => setView("servicio") },
+            ...(canAdmin ? [{ label: "Mando", fn: () => setView("admin") }] : []),
+            { label: "Salir",           fn: () => signOut(auth) },
+          ].map(item => (
+            <div key={item.label}
+              onClick={() => { item.fn(); setMobileMenuOpen(false); }}
+              style={{
+                fontFamily: "'Oswald', sans-serif", fontSize: 24, color: C.text,
+                letterSpacing: 4, textTransform: "uppercase", cursor: "pointer",
+                padding: "16px 0", borderBottom: `1px solid ${C.border}`,
+              }}>
+              {item.label}
+            </div>
+          ))}
         </div>
-        <span style={S.navItem(view === "inicio")} onClick={() => setView("inicio")}>Inicio</span>
-        <NavDropdown
-          label="ORBAT"
-          active={orbatActive}
-          items={[
-            { id: "orbat",     label: "Jerarquía" },
-            { id: "sala_fama", label: "Sala de la Fama" },
-          ]}
-          currentView={view}
-          onSelect={setView}
-        />
-        <NavDropdown
-          label="Operaciones"
-          active={opsActive}
-          items={[
-            { id: "operaciones", label: "Operaciones" },
-            { id: "calendario",  label: "Calendario" },
-          ]}
-          currentView={view}
-          onSelect={setView}
-        />
-        <span style={S.navItem(view === "foro")} onClick={() => setView("foro")}>Foro (Beta)</span>
-        <NavDropdown
-          label="Especialidades"
-          active={view === "especialidades" || view === "especialidad"}
-          items={[
-            { id: "especialidades", label: "Todas" },
-            ...especialidades.map(e => ({ id: `esp_${e._id}`, label: e.nombre })),
-          ]}
-          currentView={view === "especialidad" ? `esp_${espId}` : view}
-          onSelect={id => {
-            if (id.startsWith("esp_")) { setEspId(id.slice(4)); setView("especialidad"); }
-            else setView(id);
-          }}
-        />
-        <span style={S.navItem(view === "servicio")} onClick={() => setView("servicio")}>Mi Hoja</span>
-        {canAdmin && (
-          <span style={S.navItem(view === "admin")} onClick={() => setView("admin")}>Mando</span>
+      )}
+
+      <nav style={{ ...S.nav, padding: isMobile ? "0 16px" : "0 40px", gap: isMobile ? 0 : 40 }}>
+        <div style={{ ...S.navLogo, marginRight: "auto" }}>
+          <img src="/logo.png" alt="Legio Invicta"
+            style={{ height: isMobile ? 54 : 64, width: isMobile ? 54 : 64, borderRadius: "50%", border: `1px solid ${C.border}` }} />
+          {!isMobile && (
+            <div>
+              <span style={S.navLogoText}>LEGIO INVICTA</span>
+              <span style={S.navLogoSub}>HONOR Y VICTORIA</span>
+            </div>
+          )}
+        </div>
+        {isMobile ? (
+          <button onClick={() => setMobileMenuOpen(o => !o)} style={{
+            background: "none", border: `1px solid ${C.accent}44`, borderRadius: 6,
+            color: C.accent, fontSize: 22, cursor: "pointer", padding: "6px 14px", lineHeight: 1,
+          }}>☰</button>
+        ) : (
+          <>
+            <span style={S.navItem(view === "inicio")} onClick={() => setView("inicio")}>Inicio</span>
+            <NavDropdown
+              label="ORBAT"
+              active={orbatActive}
+              items={[
+                { id: "orbat",     label: "Jerarquía" },
+                { id: "sala_fama", label: "Sala de la Fama" },
+              ]}
+              currentView={view}
+              onSelect={setView}
+            />
+            <NavDropdown
+              label="Operaciones"
+              active={opsActive}
+              items={[
+                { id: "operaciones", label: "Operaciones" },
+                { id: "calendario",  label: "Calendario" },
+              ]}
+              currentView={view}
+              onSelect={setView}
+            />
+            <span style={S.navItem(view === "foro")} onClick={() => setView("foro")}>Foro (Beta)</span>
+            <NavDropdown
+              label="Especialidades"
+              active={view === "especialidades" || view === "especialidad"}
+              items={[
+                { id: "especialidades", label: "Todas" },
+                ...especialidades.map(e => ({ id: `esp_${e._id}`, label: e.nombre })),
+              ]}
+              currentView={view === "especialidad" ? `esp_${espId}` : view}
+              onSelect={id => {
+                if (id.startsWith("esp_")) { setEspId(id.slice(4)); setView("especialidad"); }
+                else setView(id);
+              }}
+            />
+            <span style={S.navItem(view === "servicio")} onClick={() => setView("servicio")}>Mi Hoja</span>
+            {canAdmin && (
+              <span style={S.navItem(view === "admin")} onClick={() => setView("admin")}>Mando</span>
+            )}
+            <span style={{ ...S.navItem(false), marginLeft: 8 }} onClick={() => signOut(auth)}>
+              Salir
+            </span>
+          </>
         )}
-        <span style={{ ...S.navItem(false), marginLeft: 8 }} onClick={() => signOut(auth)}>
-          Salir
-        </span>
       </nav>
 
       <div style={{ position: "relative", zIndex: 1 }}>
         {view === "inicio"         && <InicioView member={member} roles={roles} operaciones={operaciones} condecoraciones={condecoraciones} orbatMiembros={orbatMiembros} salaMandos={salaMandos} />}
         {view !== "inicio" && (
-          <div style={{ padding: "40px 36px" }}>
+          <div style={{ padding: isMobile ? "20px 14px" : "40px 36px" }}>
             {view === "servicio"       && <HojaServicioView member={member} roles={roles} operaciones={operaciones} orbatMiembros={orbatMiembros} orbatUnidades={orbatUnidades} especialidades={especialidades} condecoraciones={condecoraciones} />}
             {view === "operaciones"    && <OperacionesView ops={operaciones} member={member} />}
             {view === "calendario"     && <CalendarioView ops={operaciones} member={member} />}
@@ -310,6 +375,7 @@ export default function App() {
         )}
       </div>
     </div>
+    </MobileCtx.Provider>
   );
 }
 
@@ -378,6 +444,7 @@ function Splash() {
 /*  LOGIN / REGISTRO                       */
 /* ─────────────────────────────────────── */
 function LoginScreen() {
+  const isMobile                = useIsMobile();
   const [mode, setMode]         = useState("login"); // login | register | reset
   const [usuario, setUsuario]   = useState("");
   const [correo, setCorreo]     = useState("");
@@ -454,7 +521,7 @@ function LoginScreen() {
       {/* Overlay oscuro */}
       <div style={{ position: "absolute", inset: 0, background: "rgba(8,6,4,0.45)" }} />
 
-      <div style={{ position: "relative", zIndex: 1, width: 380 }}>
+      <div style={{ position: "relative", zIndex: 1, width: isMobile ? "92vw" : 380 }}>
         <div style={{ textAlign: "center", marginBottom: 28 }}>
           <img src="/logo.png" alt="Legio Invicta"
             style={{ width: 110, height: 110, borderRadius: "50%", border: `2px solid ${C.accent}55`, marginBottom: 16, filter: "drop-shadow(0 0 18px rgba(201,162,74,0.4))" }} />
@@ -601,7 +668,7 @@ function ExpelledScreen({ member }) {
 function StatusScreen({ color, icon, title, lines }) {
   return (
     <div style={{ ...S.page, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ ...S.card, width: 420, textAlign: "center", borderColor: color + "66" }}>
+      <div style={{ ...S.card, width: "min(420px, 90vw)", textAlign: "center", borderColor: color + "66" }}>
         <div style={{ fontSize: 40, marginBottom: 12 }}>{icon}</div>
         <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 20, color, letterSpacing: 3, marginBottom: 16 }}>
           {title}
@@ -639,6 +706,7 @@ function Collapsible({ title, badge, children, defaultOpen = false }) {
 /*  VISTA INICIO — TABLERO DE MANDOS       */
 /* ─────────────────────────────────────── */
 function InicioView({ member, roles, operaciones, condecoraciones, orbatMiembros, salaMandos }) {
+  const isMobile   = useContext(MobileCtx);
   const allMembers = useCollection("members");
   const activos    = allMembers.filter(m => m.accessStatus === "activo");
 
@@ -688,6 +756,82 @@ function InicioView({ member, roles, operaciones, condecoraciones, orbatMiembros
     letterSpacing: 3, textTransform: "uppercase", marginBottom: 12,
   };
 
+  /* ── Layout móvil ── */
+  if (isMobile) {
+    return (
+      <div style={{ minHeight: "calc(100vh - 96px)", position: "relative", padding: "32px 16px 56px", boxSizing: "border-box" }}>
+        <div style={{ position: "fixed", top: 96, left: 0, right: 0, bottom: 0, pointerEvents: "none", zIndex: 0,
+          background: "linear-gradient(to top, rgba(6,5,4,0.92) 0%, rgba(6,5,4,0.25) 60%, transparent 100%)" }} />
+        <div style={{ position: "relative", zIndex: 1 }}>
+          {/* Bienvenida */}
+          <div style={{ textAlign: "center", marginBottom: 28 }}>
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 12, color: C.accent, letterSpacing: 5, textTransform: "uppercase", marginBottom: 8, opacity: 0.9 }}>
+              {welcomeText}
+            </div>
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 38, fontWeight: 700, color: C.text, lineHeight: 1, letterSpacing: 2, textShadow: "0 2px 20px rgba(0,0,0,0.8)" }}>
+              {member.displayName || member.handle}
+            </div>
+            {roleNames && (
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: C.accent, letterSpacing: 3, marginTop: 8 }}>
+                {roleNames}
+              </div>
+            )}
+          </div>
+
+          {/* Stats 2×2 */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+            {statCards.map(s => (
+              <div key={s.label} style={{ ...panelStyle, textAlign: "center", padding: "14px 10px" }}>
+                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 30, color: s.color, lineHeight: 1 }}>{s.value}</div>
+                <div style={{ color: "rgba(232,224,208,0.4)", fontSize: 9, letterSpacing: 1, fontFamily: "'Oswald', sans-serif", textTransform: "uppercase", marginTop: 4 }}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Próximas operaciones */}
+          <div style={{ ...panelStyle, marginBottom: 14 }}>
+            <div style={panelTitle}>Próximas operaciones</div>
+            {proximas.length === 0
+              ? <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>Sin operaciones planificadas.</p>
+              : proximas.map(op => {
+                const est = OP_ESTADOS[op.estado] || OP_ESTADOS.planificada;
+                return (
+                  <div key={op._id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: `1px solid rgba(201,162,74,0.08)` }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13 }}>{op.nombre}</div>
+                      <div style={{ display: "flex", gap: 5, marginTop: 2, alignItems: "center" }}>
+                        <span style={S.badge(est.color)}>{est.label}</span>
+                        {op.fecha && <span style={{ color: C.muted, fontSize: 11 }}>{new Date(op.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short" })}</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            }
+          </div>
+
+          {/* Condecoraciones recientes */}
+          <div style={{ ...panelStyle }}>
+            <div style={panelTitle}>Condecoraciones recientes</div>
+            {ultimasDecos.length === 0
+              ? <p style={{ color: C.muted, fontSize: 12, margin: 0 }}>Sin condecoraciones registradas.</p>
+              : ultimasDecos.map(d => (
+                <div key={d._id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: `1px solid rgba(201,162,74,0.08)` }}>
+                  <span style={{ fontSize: 14, flexShrink: 0 }}>🎖</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 12, color: C.accent }}>{d.nombre}</div>
+                    <div style={{ color: C.muted, fontSize: 11 }}>{d.memberHandle}</div>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Layout desktop ── */
   return (
     <div style={{ height: "calc(100vh - 96px)", overflow: "hidden", position: "relative", boxSizing: "border-box" }}>
       {/* Gradiente */}
@@ -844,11 +988,11 @@ function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMi
   return (
     <div>
       <h2 style={S.h2}>Centro de Mando</h2>
-      <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.border}`, marginBottom: 24 }}>
+      <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.border}`, marginBottom: 24, overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             style={{
-              background: "none", border: "none",
+              background: "none", border: "none", flexShrink: 0,
               borderBottom: tab === t.id ? `2px solid ${C.accent}` : "2px solid transparent",
               color: tab === t.id ? C.accent : C.muted,
               fontFamily: "'Oswald', sans-serif", fontSize: 13, letterSpacing: 2,
@@ -1011,7 +1155,7 @@ function TabRangos({ roles, isJefe, isSuperAdmin }) {
       {canEdit && (
         <div style={{ ...S.card, marginBottom: 24 }}>
           <h3 style={S.h3}>{editId ? "Editar rango" : "Nuevo rango"}</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 24 }}>
             {/* Izquierda: nombre + insignia + botones */}
             <div>
               <div style={{ marginBottom: 12 }}>
@@ -1753,6 +1897,7 @@ function OrbatView({ unidades, miembros, roles, especialidades, condecoraciones,
 /*  VISTA NAV SALA DE LA FAMA              */
 /* ─────────────────────────────────────── */
 function SalaFamaView({ condecoraciones, roles }) {
+  const isMobile   = useContext(MobileCtx);
   const allMembers = useCollection("members");
 
   const byMember = condecoraciones.filter(d => d.memberId).reduce((acc, d) => {
@@ -1772,7 +1917,7 @@ function SalaFamaView({ condecoraciones, roles }) {
 
   return (
     <div style={{
-      margin: "-40px -36px 0",
+      margin: isMobile ? "-20px -14px 0" : "-40px -36px 0",
       minHeight: "calc(100vh - 96px)",
       position: "relative",
       backgroundImage: "url('/capturas/salondelafama.png')",
