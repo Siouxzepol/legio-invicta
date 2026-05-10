@@ -1775,7 +1775,7 @@ function SalaFamaView({ condecoraciones, roles }) {
       margin: "-40px -36px 0",
       minHeight: "calc(100vh - 96px)",
       position: "relative",
-      backgroundImage: "url('/capturas/imagen salon de fama.png')",
+      backgroundImage: "url('/capturas/salondelafama.png')",
       backgroundSize: "cover",
       backgroundPosition: "center top",
       overflow: "hidden",
