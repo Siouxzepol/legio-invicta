@@ -1763,59 +1763,97 @@ function SalaFamaView({ condecoraciones, roles }) {
 
   const entries = Object.entries(byMember).sort((a, b) => b[1].decos.length - a[1].decos.length);
 
+  const abrevRango = name => {
+    if (!name) return "";
+    const words = name.trim().split(/\s+/).filter(w => !/^[0-9º]+$/.test(w));
+    if (words.length === 1) return words[0].slice(0, 3).toUpperCase();
+    return words.map(w => w[0]).join("").toUpperCase();
+  };
+
   return (
-    <div>
-      <h2 style={S.h2}>Sala de la Fama</h2>
-      {entries.length === 0 ? (
-        <p style={{ color: C.muted }}>Sin condecoraciones registradas todavía.</p>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-          {entries.map(([memberId, { handle, decos }]) => {
-            const mem = allMembers.find(m => m._id === memberId);
-            const memberRoles = roles.filter(r => getMemberRoleIds(mem || {}).includes(r._id));
-            const rangoP = [...memberRoles].sort((a, b) => (b.orden ?? 0) - (a.orden ?? 0)).find(r => r.insigniaUrl)
-              || [...memberRoles].sort((a, b) => (b.orden ?? 0) - (a.orden ?? 0))[0]
-              || null;
-            return (
-              <div key={memberId} style={{ ...S.card, borderTop: `3px solid ${C.accent}` }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
-                  {rangoP?.insigniaUrl && (
-                    <img src={rangoP.insigniaUrl} alt={rangoP.name} style={{ width: 36, height: 48, objectFit: "contain", flexShrink: 0 }} />
-                  )}
-                  <div>
-                    {rangoP && <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 11, color: C.accentDim, letterSpacing: 2, textTransform: "uppercase" }}>{rangoP.name}</div>}
-                    <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 22, color: C.accent, letterSpacing: 3 }}>{handle}</div>
-                  </div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  {decos.map(d => (
-                    <div key={d._id} style={{ display: "flex", gap: 16, background: "#ffffff07", borderRadius: 8, padding: "14px 16px", alignItems: "flex-start" }}>
-                      {d.imagenUrl
-                        ? <img src={d.imagenUrl} alt={d.nombre} style={{ width: 56, height: 56, objectFit: "contain", flexShrink: 0 }} />
-                        : <span style={{ fontSize: 40, flexShrink: 0 }}>🎖</span>
-                      }
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
-                          <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 16, color: C.text, letterSpacing: 1 }}>{d.nombre}</span>
-                          {d.categoria && <span style={{ fontSize: 10, padding: "1px 7px", borderRadius: 2, background: `${DECO_CAT_COLOR[d.categoria] || C.accent}22`, color: DECO_CAT_COLOR[d.categoria] || C.accent, border: `1px solid ${DECO_CAT_COLOR[d.categoria] || C.accent}44`, letterSpacing: 1, textTransform: "uppercase", fontFamily: "'Share Tech Mono', monospace" }}>{d.categoria}</span>}
-                          {d.fecha && <span style={{ color: C.accentDim, fontSize: 11 }}>{new Date(d.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}</span>}
-                        </div>
-                        {d.descripcion && <div className="rich-text" style={{ color: C.muted, fontSize: 12, lineHeight: 1.7, marginBottom: d.motivo ? 10 : 0 }} dangerouslySetInnerHTML={{ __html: d.descripcion }} />}
-                        {d.motivo && (
-                          <div style={{ borderLeft: `2px solid ${C.accent}55`, paddingLeft: 10 }}>
-                            <div style={{ fontSize: 10, letterSpacing: 2, color: C.accentDim, textTransform: "uppercase", fontFamily: "'Share Tech Mono', monospace", marginBottom: 4 }}>Motivo del otorgamiento</div>
-                            <div className="rich-text" style={{ color: C.text, fontSize: 13, lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: d.motivo }} />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+    <div style={{
+      margin: "-40px -36px 0",
+      minHeight: "calc(100vh - 96px)",
+      position: "relative",
+      backgroundImage: "url('/capturas/imagen salon de fama.png')",
+      backgroundSize: "cover",
+      backgroundPosition: "center top",
+      overflow: "hidden",
+    }}>
+      {/* Overlay */}
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(6,4,3,0.45) 0%, rgba(6,4,3,0.72) 30%, rgba(6,4,3,0.92) 60%, rgba(6,4,3,1) 100%)", pointerEvents: "none" }} />
+
+      <div style={{ position: "relative", zIndex: 1, padding: "70px 48px 80px", maxWidth: 1300, margin: "0 auto" }}>
+
+        {/* Header */}
+        <div style={{ textAlign: "center", marginBottom: 64 }}>
+          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 56, fontWeight: 700, letterSpacing: 10, color: C.accent, textTransform: "uppercase", textShadow: `0 0 60px ${C.accent}55, 0 2px 4px rgba(0,0,0,0.8)`, lineHeight: 1 }}>
+            SALÓN DE LA FAMA
+          </div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, letterSpacing: 7, color: C.accentDim, marginTop: 12, textTransform: "uppercase" }}>
+            HONOR · SACRIFICIO · HERMANDAD
+          </div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, letterSpacing: 2, color: "rgba(255,255,255,0.35)", marginTop: 14, maxWidth: 560, margin: "14px auto 0", lineHeight: 1.8 }}>
+            En reconocimiento a quienes han dado todo por sus camaradas y por Legio Invicta. Sus nombres quedan grabados para siempre.
+          </div>
         </div>
-      )}
+
+        {/* Grid */}
+        {entries.length === 0 ? (
+          <p style={{ textAlign: "center", color: C.muted, letterSpacing: 3, fontFamily: "'Share Tech Mono', monospace", fontSize: 12 }}>SIN CONDECORADOS TODAVÍA</p>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(155px, 1fr))", gap: 14 }}>
+            {entries.map(([memberId, { handle, decos }]) => {
+              const mem = allMembers.find(m => m._id === memberId);
+              const memberRoles = roles.filter(r => getMemberRoleIds(mem || {}).includes(r._id));
+              const rangoP = [...memberRoles].sort((a, b) => (b.orden ?? 0) - (a.orden ?? 0))[0] || null;
+              const decoConImg = decos.filter(d => d.imagenUrl);
+              return (
+                <div key={memberId} style={{
+                  background: "rgba(6,4,3,0.72)",
+                  border: `1px solid ${C.accent}30`,
+                  borderTop: `2px solid ${C.accent}99`,
+                  borderRadius: 3,
+                  padding: "18px 14px 14px",
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+                  backdropFilter: "blur(6px)",
+                  boxShadow: `0 4px 24px rgba(0,0,0,0.7), inset 0 0 40px rgba(201,162,74,0.02)`,
+                }}>
+                  {/* Rango abreviado */}
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: C.accentDim, letterSpacing: 4, textTransform: "uppercase" }}>
+                    {abrevRango(rangoP?.name)}
+                  </div>
+                  {/* Insignia */}
+                  {rangoP?.insigniaUrl
+                    ? <img src={rangoP.insigniaUrl} alt={rangoP.name} style={{ width: 30, height: 40, objectFit: "contain" }} />
+                    : <div style={{ width: 30, height: 40 }} />
+                  }
+                  {/* Nombre */}
+                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.text, letterSpacing: 2, textAlign: "center", textTransform: "uppercase", marginTop: 2 }}>
+                    {handle}
+                  </div>
+                  {/* Medallas */}
+                  {decoConImg.length > 0 && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center", marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.accent}22`, width: "100%" }}>
+                      {decoConImg.map(d => (
+                        <img key={d._id} src={d.imagenUrl} alt={d.nombre} title={d.nombre} style={{ width: 26, height: 26, objectFit: "contain" }} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Footer */}
+        <div style={{ textAlign: "center", marginTop: 72, paddingTop: 24, borderTop: `1px solid ${C.accent}18` }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, letterSpacing: 5, color: `${C.accent}40`, textTransform: "uppercase" }}>
+            TODO EL HONOR ES TUYO · HONOR DE LOS QUE DAN SU VIDA
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }
