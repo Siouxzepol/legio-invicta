@@ -1963,23 +1963,30 @@ function SalaFamaView({ condecoraciones, roles }) {
                   display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
                   backdropFilter: "blur(6px)",
                   boxShadow: `0 4px 24px rgba(0,0,0,0.7), inset 0 0 40px rgba(201,162,74,0.02)`,
+                  position: "relative", overflow: "hidden",
                 }}>
+                  {/* Silueta soldado */}
+                  <img src="/capturas/silueta.png" aria-hidden="true" alt="" style={{
+                    position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)",
+                    height: "92%", width: "auto", pointerEvents: "none",
+                    filter: "invert(1)", mixBlendMode: "screen", opacity: 0.13,
+                  }} />
                   {/* Rango abreviado */}
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: C.accentDim, letterSpacing: 4, textTransform: "uppercase" }}>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: C.accentDim, letterSpacing: 4, textTransform: "uppercase", position: "relative" }}>
                     {abrevRango(rangoP?.name)}
                   </div>
                   {/* Insignia */}
                   {rangoP?.insigniaUrl
-                    ? <img src={rangoP.insigniaUrl} alt={rangoP.name} style={{ width: 30, height: 40, objectFit: "contain" }} />
-                    : <div style={{ width: 30, height: 40 }} />
+                    ? <img src={rangoP.insigniaUrl} alt={rangoP.name} style={{ width: 30, height: 40, objectFit: "contain", position: "relative" }} />
+                    : <div style={{ width: 30, height: 40, position: "relative" }} />
                   }
                   {/* Nombre */}
-                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.text, letterSpacing: 2, textAlign: "center", textTransform: "uppercase", marginTop: 2 }}>
+                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.text, letterSpacing: 2, textAlign: "center", textTransform: "uppercase", marginTop: 2, position: "relative" }}>
                     {handle}
                   </div>
                   {/* Medallas */}
                   {decoConImg.length > 0 && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center", marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.accent}22`, width: "100%" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center", marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.accent}22`, width: "100%", position: "relative" }}>
                       {decoConImg.map(d => (
                         <img key={d._id} src={d.imagenUrl} alt={d.nombre} title={d.nombre} style={{ width: 26, height: 26, objectFit: "contain" }} />
                       ))}
