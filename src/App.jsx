@@ -2464,6 +2464,10 @@ function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
 
   const save = async () => {
     if (!nombre.trim()) return;
+    if (selId && condecoraciones.some(d => d.memberId === selId && d.nombre === nombre.trim())) {
+      alert(`Este militar ya tiene la condecoración "${nombre.trim()}".`);
+      return;
+    }
     const mem = activeMembers.find(m => m._id === selId);
     await fbAdd("condecoraciones", {
       memberId:     selId || null,
@@ -2481,6 +2485,11 @@ function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
 
   const confirmarAsignacion = async () => {
     if (!asignarSelId || !asignarId) return;
+    const deco = condecoraciones.find(d => d._id === asignarId);
+    if (deco && condecoraciones.some(d => d.memberId === asignarSelId && d.nombre === deco.nombre)) {
+      alert(`Este militar ya tiene la condecoración "${deco.nombre}".`);
+      return;
+    }
     const mem = activeMembers.find(m => m._id === asignarSelId);
     await fbSet("condecoraciones", asignarId, { memberId: asignarSelId, memberHandle: mem?.handle || "" });
     setAsignarId(null); setAsignarSelId("");
