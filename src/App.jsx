@@ -1796,7 +1796,8 @@ function SalaFamaGrid({ salaFama, condecoraciones }) {
                     }
                     <div>
                       <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, color: C.text, letterSpacing: 1 }}>{d.nombre}</div>
-                      {d.descripcion && <div style={{ color: C.muted, fontSize: 12, marginTop: 3, lineHeight: 1.5 }}>{d.descripcion}</div>}
+                      {d.motivo && <div className="rich-text" style={{ color: C.muted, fontSize: 12, marginTop: 4, lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: d.motivo }} />}
+                      {!d.motivo && d.descripcion && <div style={{ color: C.muted, fontSize: 12, marginTop: 3, lineHeight: 1.5 }}>{d.descripcion}</div>}
                       {d.fecha && <div style={{ color: C.accentDim, fontSize: 11, marginTop: 3 }}>{new Date(d.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}</div>}
                     </div>
                   </div>
@@ -2092,10 +2093,15 @@ function HojaServicioView({ member, roles, operaciones, orbatMiembros, orbatUnid
           ) : myDecos.map(d => (
             <div key={d._id} style={{ padding: "10px 0", borderBottom: `1px solid ${C.border}20` }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                <span style={{ fontSize: 18 }}>🎖</span>
+                {d.imagenUrl
+                  ? <img src={d.imagenUrl} alt={d.nombre} style={{ width: 24, height: 24, objectFit: "contain", flexShrink: 0 }} />
+                  : <span style={{ fontSize: 18 }}>🎖</span>
+                }
                 <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, color: C.accent }}>{d.nombre}</span>
+                {d.fecha && <span style={{ color: C.muted, fontSize: 11 }}>{new Date(d.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}</span>}
               </div>
-              {d.descripcion && <div style={{ color: C.muted, fontSize: 12, paddingLeft: 26 }}>{d.descripcion}</div>}
+              {d.motivo && <div className="rich-text" style={{ color: C.muted, fontSize: 12, paddingLeft: 30, lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: d.motivo }} />}
+              {!d.motivo && d.descripcion && <div style={{ color: C.muted, fontSize: 12, paddingLeft: 30 }}>{d.descripcion}</div>}
               <div style={{ display: "flex", gap: 10, paddingLeft: 26, marginTop: 4 }}>
                 {d.fecha && (
                   <span style={{ color: C.muted, fontSize: 11 }}>
@@ -2398,31 +2404,40 @@ function TabSalaFama({ salaFama, condecoraciones, isJefe, canDo }) {
 /* ─────────────────────────────────────── */
 /*  TAB CONDECORACIONES (ADMIN)            */
 /* ─────────────────────────────────────── */
+const DECO_CATEGORIAS = ["Combate", "Mando", "Servicio", "Especialidades", "Internos"];
+const DECO_CAT_COLOR  = { Combate:"#ef4444", Mando:"#C9A24A", Servicio:"#3b82f6", Especialidades:"#8b5cf6", Internos:"#6b7280" };
+
 function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
   const allMembers    = useCollection("members");
   const activeMembers = allMembers.filter(m => m.accessStatus === "activo");
 
   const [selId,     setSelId]     = useState("");
   const [nombre,    setNombre]    = useState("");
-  const [desc,      setDesc]      = useState("");
+  const [categoria, setCategoria] = useState("Combate");
+  const [descripcion, setDescripcion] = useState("");
+  const [motivo,    setMotivo]    = useState("");
   const [fecha,     setFecha]     = useState("");
   const [imagenUrl, setImagenUrl] = useState("");
 
   const canEdit = isJefe || canDo("manage_condecoraciones");
 
+  const resetForm = () => { setSelId(""); setNombre(""); setCategoria("Combate"); setDescripcion(""); setMotivo(""); setFecha(""); setImagenUrl(""); };
+
   const save = async () => {
     if (!selId || !nombre.trim()) return;
     const mem = activeMembers.find(m => m._id === selId);
     await fbAdd("condecoraciones", {
-      memberId:     selId,
+      memberId:    selId,
       memberHandle: mem?.handle || "",
-      nombre:       nombre.trim(),
-      descripcion:  desc.trim(),
-      fecha:        fecha || null,
-      imagenUrl:    imagenUrl.trim() || null,
-      otorgadoPor:  member.handle,
+      nombre:      nombre.trim(),
+      categoria,
+      descripcion,
+      motivo,
+      fecha:       fecha || null,
+      imagenUrl:   imagenUrl.trim() || null,
+      otorgadoPor: member.handle,
     });
-    setSelId(""); setNombre(""); setDesc(""); setFecha(""); setImagenUrl("");
+    resetForm();
   };
 
   const del = async d => {
@@ -2430,7 +2445,6 @@ function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
     await fbDel("condecoraciones", d._id);
   };
 
-  /* Agrupar por miembro */
   const byMember = condecoraciones.reduce((acc, d) => {
     if (!acc[d.memberId]) acc[d.memberId] = { handle: d.memberHandle, decos: [] };
     acc[d.memberId].decos.push(d);
@@ -2459,8 +2473,10 @@ function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
               <input style={S.input} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Cruz al Valor, Medalla de Honor…" />
             </div>
             <div>
-              <label style={S.label}>Descripción / Motivo</label>
-              <input style={S.input} value={desc} onChange={e => setDesc(e.target.value)} placeholder="Motivo de la distinción…" />
+              <label style={S.label}>Categoría</label>
+              <select style={S.input} value={categoria} onChange={e => setCategoria(e.target.value)}>
+                {DECO_CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
             </div>
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={S.label}>URL de la imagen de la medalla</label>
@@ -2468,6 +2484,16 @@ function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
               {imagenUrl.trim() && (
                 <img src={imagenUrl.trim()} alt="preview" style={{ marginTop: 8, height: 64, objectFit: "contain", background: "#0004", borderRadius: 4, padding: 4 }} />
               )}
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={S.label}>Descripción de la condecoración</label>
+              <p style={{ color: C.muted, fontSize: 11, margin: "0 0 6px" }}>Qué representa esta distinción en general.</p>
+              <LegioEditor content={descripcion} onChange={setDescripcion} minHeight={120} stickyTop={96} />
+            </div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={S.label}>Motivo del otorgamiento</label>
+              <p style={{ color: C.muted, fontSize: 11, margin: "0 0 6px" }}>Por qué se otorga a este militar concretamente. Se mostrará en la Sala de la Fama.</p>
+              <LegioEditor content={motivo} onChange={setMotivo} minHeight={120} stickyTop={96} />
             </div>
           </div>
           <button style={S.btn("primary")} onClick={save} disabled={!selId || !nombre.trim()}>Otorgar</button>
@@ -2484,17 +2510,20 @@ function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
               @{handle}
             </div>
             {decos.map(d => (
-              <div key={d._id} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "6px 0 6px 12px", borderBottom: `1px solid ${C.border}20` }}>
-                <span style={{ fontSize: 16, flexShrink: 0 }}>🎖</span>
+              <div key={d._id} style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 0 8px 12px", borderBottom: `1px solid ${C.border}20` }}>
+                {d.imagenUrl
+                  ? <img src={d.imagenUrl} alt={d.nombre} style={{ width: 32, height: 32, objectFit: "contain", flexShrink: 0 }} />
+                  : <span style={{ fontSize: 16, flexShrink: 0 }}>🎖</span>
+                }
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13 }}>{d.nombre}</div>
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 2 }}>
-                    {d.descripcion && <span style={{ color: C.muted, fontSize: 12 }}>{d.descripcion}</span>}
-                    {d.fecha && (
-                      <span style={{ color: C.muted, fontSize: 11 }}>
-                        {new Date(d.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}
-                      </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13 }}>{d.nombre}</span>
+                    {d.categoria && (
+                      <span style={{ fontSize: 10, padding: "1px 7px", borderRadius: 2, background: `${DECO_CAT_COLOR[d.categoria] || C.accent}22`, color: DECO_CAT_COLOR[d.categoria] || C.accent, border: `1px solid ${DECO_CAT_COLOR[d.categoria] || C.accent}44`, letterSpacing: 1, textTransform: "uppercase", fontFamily: "'Share Tech Mono', monospace" }}>{d.categoria}</span>
                     )}
+                  </div>
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 2 }}>
+                    {d.fecha && <span style={{ color: C.muted, fontSize: 11 }}>{new Date(d.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}</span>}
                     {d.otorgadoPor && <span style={{ color: C.muted, fontSize: 11 }}>por @{d.otorgadoPor}</span>}
                   </div>
                 </div>
