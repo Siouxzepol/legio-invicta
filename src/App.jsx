@@ -1894,6 +1894,40 @@ function OrbatView({ unidades, miembros, roles, especialidades, condecoraciones,
 }
 
 /* ─────────────────────────────────────── */
+/*  TOOLTIP CONDECORACIÓN                  */
+/* ─────────────────────────────────────── */
+function DecoTooltip({ d }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div style={{ position: "relative", display: "inline-flex" }}
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      <img src={d.imagenUrl} alt={d.nombre}
+        style={{ width: 26, height: 26, objectFit: "contain", cursor: "help" }} />
+      {show && (
+        <div style={{
+          position: "absolute", bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)",
+          background: "rgba(10,8,6,0.98)", border: `1px solid ${C.accent}55`,
+          borderRadius: 6, padding: "8px 12px", zIndex: 500,
+          minWidth: 170, maxWidth: 240, pointerEvents: "none",
+          boxShadow: `0 6px 24px rgba(0,0,0,0.85), 0 0 0 1px ${C.accent}22`,
+          whiteSpace: "normal",
+        }}>
+          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 12, color: C.accent, letterSpacing: 1, marginBottom: d.descripcion ? 5 : 0 }}>
+            {d.nombre}
+          </div>
+          {d.descripcion && (
+            <div className="rich-text" style={{ fontSize: 11, color: C.muted, lineHeight: 1.5 }}
+              dangerouslySetInnerHTML={{ __html: d.descripcion }} />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────── */
 /*  VISTA NAV SALA DE LA FAMA              */
 /* ─────────────────────────────────────── */
 function SalaFamaView({ condecoraciones, roles }) {
@@ -1963,14 +1997,16 @@ function SalaFamaView({ condecoraciones, roles }) {
                   display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
                   backdropFilter: "blur(6px)",
                   boxShadow: `0 4px 24px rgba(0,0,0,0.7), inset 0 0 40px rgba(201,162,74,0.02)`,
-                  position: "relative", overflow: "hidden",
+                  position: "relative",
                 }}>
-                  {/* Silueta soldado */}
-                  <img src="/capturas/silueta.png" aria-hidden="true" alt="" style={{
-                    position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)",
-                    height: "92%", width: "auto", pointerEvents: "none",
-                    filter: "invert(1)", mixBlendMode: "screen", opacity: 0.13,
-                  }} />
+                  {/* Silueta soldado — wrapper propio para clipear sin afectar tooltips */}
+                  <div style={{ position: "absolute", inset: 0, overflow: "hidden", borderRadius: 3, pointerEvents: "none" }}>
+                    <img src="/capturas/silueta.png" aria-hidden="true" alt="" style={{
+                      position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)",
+                      height: "92%", width: "auto",
+                      filter: "invert(1)", mixBlendMode: "screen", opacity: 0.13,
+                    }} />
+                  </div>
                   {/* Rango abreviado */}
                   <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: C.accentDim, letterSpacing: 4, textTransform: "uppercase", position: "relative" }}>
                     {abrevRango(rangoP?.name)}
@@ -1988,7 +2024,7 @@ function SalaFamaView({ condecoraciones, roles }) {
                   {decoConImg.length > 0 && (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center", marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.accent}22`, width: "100%", position: "relative" }}>
                       {decoConImg.map(d => (
-                        <img key={d._id} src={d.imagenUrl} alt={d.nombre} title={d.nombre} style={{ width: 26, height: 26, objectFit: "contain" }} />
+                        <DecoTooltip key={d._id} d={d} />
                       ))}
                     </div>
                   )}
@@ -2298,8 +2334,17 @@ function HojaServicioView({ member, roles, operaciones, orbatMiembros, orbatUnid
                 <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, color: C.accent }}>{d.nombre}</span>
                 {d.fecha && <span style={{ color: C.muted, fontSize: 11 }}>{new Date(d.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}</span>}
               </div>
-              {d.motivo && <div className="rich-text" style={{ color: C.muted, fontSize: 12, paddingLeft: 30, lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: d.motivo }} />}
-              {!d.motivo && d.descripcion && <div style={{ color: C.muted, fontSize: 12, paddingLeft: 30 }}>{d.descripcion}</div>}
+              {d.descripcion && (
+                <div className="rich-text" style={{ color: C.muted, fontSize: 12, paddingLeft: 30, lineHeight: 1.6, marginTop: 2 }}
+                  dangerouslySetInnerHTML={{ __html: d.descripcion }} />
+              )}
+              {d.motivo && (
+                <div style={{ paddingLeft: 30, marginTop: 6 }}>
+                  <div style={{ fontSize: 10, color: C.accentDim, letterSpacing: 2, fontFamily: "'Share Tech Mono', monospace", marginBottom: 3 }}>MOTIVO</div>
+                  <div className="rich-text" style={{ color: C.muted, fontSize: 12, lineHeight: 1.6 }}
+                    dangerouslySetInnerHTML={{ __html: d.motivo }} />
+                </div>
+              )}
               <div style={{ display: "flex", gap: 10, paddingLeft: 26, marginTop: 4 }}>
                 {d.fecha && (
                   <span style={{ color: C.muted, fontSize: 11 }}>
