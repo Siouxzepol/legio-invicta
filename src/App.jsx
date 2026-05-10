@@ -2428,6 +2428,12 @@ const MEDALLAS_CATALOGO = [
   { nombre:"Cruz de Asalto Operacional",            categoria:"Especialidades",imagenUrl:"/condecoraciones/especialidades/Cruz de Asalto Operacional.png" },
   { nombre:"Orden del Escudo Defensivo",            categoria:"Especialidades",imagenUrl:"/condecoraciones/especialidades/Orden del Escudo Defensivo.png" },
   { nombre:"Insignia de Reconocimiento Avanzado",   categoria:"Especialidades",imagenUrl:"/condecoraciones/especialidades/Insignia de Reconocimiento Avanzado.png" },
+  { nombre:"Distinción Aérea Táctica",              categoria:"Especialidades",imagenUrl:"/condecoraciones/especialidades/Distinción Aérea Táctica.png" },
+  { nombre:"Orden FIB de Instrucción",              categoria:"Especialidades",imagenUrl:"/condecoraciones/especialidades/Orden FIB de Instrucción.png" },
+  { nombre:"Espíritu de Legión",                    categoria:"Internos",      imagenUrl:"/condecoraciones/internos/Espíritu de Legión.png" },
+  { nombre:"Hierro Inquebrantable",                 categoria:"Internos",      imagenUrl:"/condecoraciones/internos/Hierro Inquebrantable.png" },
+  { nombre:"Legado Invicta",                        categoria:"Internos",      imagenUrl:"/condecoraciones/internos/Legado Invicta.png" },
+  { nombre:"Honor de la Hermandad",                 categoria:"Internos",      imagenUrl:"/condecoraciones/internos/Honor de la Hermandad.png" },
 ];
 
 function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
