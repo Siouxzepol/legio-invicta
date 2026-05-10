@@ -2406,6 +2406,29 @@ function TabSalaFama({ salaFama, condecoraciones, isJefe, canDo }) {
 /* ─────────────────────────────────────── */
 const DECO_CATEGORIAS = ["Combate", "Mando", "Servicio", "Especialidades", "Internos"];
 const DECO_CAT_COLOR  = { Combate:"#ef4444", Mando:"#C9A24A", Servicio:"#3b82f6", Especialidades:"#8b5cf6", Internos:"#6b7280" };
+const MEDALLAS_CATALOGO = [
+  { nombre:"Cruz de Valor",                         categoria:"Combate",       imagenUrl:"/condecoraciones/combate/1cruzdevalor.png" },
+  { nombre:"Sangre y Acero",                        categoria:"Combate",       imagenUrl:"/condecoraciones/combate/2sangreyacero.png" },
+  { nombre:"Orden de la Legión de Hierro",          categoria:"Combate",       imagenUrl:"/condecoraciones/combate/3Orden de la Legión de Hierro.png" },
+  { nombre:"Cruz del Fénix Negro",                  categoria:"Combate",       imagenUrl:"/condecoraciones/combate/4Cruz del Fénix Negro.png" },
+  { nombre:"Orden Invicta Suprema",                 categoria:"Combate",       imagenUrl:"/condecoraciones/combate/5Orden Invicta Suprema.png" },
+  { nombre:"Distinción de Mando Táctico",           categoria:"Mando",         imagenUrl:"/condecoraciones/mando/1Distinción de Mando Táctico.png" },
+  { nombre:"Orden de Estrategia Operacional",       categoria:"Mando",         imagenUrl:"/condecoraciones/mando/2Orden de Estrategia Operacional.png" },
+  { nombre:"Cruz de Autoridad Legionaria",          categoria:"Mando",         imagenUrl:"/condecoraciones/mando/3Cruz de Autoridad Legionaria.png" },
+  { nombre:"Orden NEXO de Comando",                 categoria:"Mando",         imagenUrl:"/condecoraciones/mando/4Orden NEXO de Comando.png" },
+  { nombre:"Insignia Suprema de Alto Mando",        categoria:"Mando",         imagenUrl:"/condecoraciones/mando/5Insignia Suprema de Alto Mando.png" },
+  { nombre:"Medalla de Servicio Activo",            categoria:"Servicio",      imagenUrl:"/condecoraciones/servicio/1Medalla de Servicio Activo.png" },
+  { nombre:"Distinción de Veteranía Operacional",   categoria:"Servicio",      imagenUrl:"/condecoraciones/servicio/2Distinción de Veteranía Operacional.png" },
+  { nombre:"Orden de Constancia Legionaria",        categoria:"Servicio",      imagenUrl:"/condecoraciones/servicio/3Orden de Constancia Legionaria.png" },
+  { nombre:"Cruz de Campaña Invicta",               categoria:"Servicio",      imagenUrl:"/condecoraciones/servicio/4Cruz de Campaña Invicta.png" },
+  { nombre:"Insignia de Legado Eterno",             categoria:"Servicio",      imagenUrl:"/condecoraciones/servicio/5Insignia de Legado Eterno.png" },
+  { nombre:"Cruz de Sanidad Táctica",               categoria:"Especialidades",imagenUrl:"/condecoraciones/especialidades/1Cruz de Sanidad Táctica.png" },
+  { nombre:"Insignia de Comunicaciones Operacionales",categoria:"Especialidades",imagenUrl:"/condecoraciones/especialidades/Insignia de Comunicaciones Operacionales.png" },
+  { nombre:"Orden del Ojo del Cuervo",              categoria:"Especialidades",imagenUrl:"/condecoraciones/especialidades/Orden del Ojo del Cuervo.png" },
+  { nombre:"Cruz de Asalto Operacional",            categoria:"Especialidades",imagenUrl:"/condecoraciones/especialidades/Cruz de Asalto Operacional.png" },
+  { nombre:"Orden del Escudo Defensivo",            categoria:"Especialidades",imagenUrl:"/condecoraciones/especialidades/Orden del Escudo Defensivo.png" },
+  { nombre:"Insignia de Reconocimiento Avanzado",   categoria:"Especialidades",imagenUrl:"/condecoraciones/especialidades/Insignia de Reconocimiento Avanzado.png" },
+];
 
 function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
   const allMembers    = useCollection("members");
@@ -2422,6 +2445,14 @@ function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
   const canEdit = isJefe || canDo("manage_condecoraciones");
 
   const resetForm = () => { setSelId(""); setNombre(""); setCategoria("Combate"); setDescripcion(""); setMotivo(""); setFecha(""); setImagenUrl(""); };
+
+  const pickMedalla = e => {
+    const m = MEDALLAS_CATALOGO.find(x => x.nombre === e.target.value);
+    if (!m) return;
+    setNombre(m.nombre);
+    setCategoria(m.categoria);
+    setImagenUrl(m.imagenUrl);
+  };
 
   const save = async () => {
     if (!selId || !nombre.trim()) return;
@@ -2468,9 +2499,22 @@ function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
               <label style={S.label}>Fecha</label>
               <input style={{ ...S.input, colorScheme: "dark" }} type="date" value={fecha} onChange={e => setFecha(e.target.value)} />
             </div>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label style={S.label}>Medalla del catálogo</label>
+              <select style={S.input} value={nombre} onChange={pickMedalla}>
+                <option value="">— Seleccionar medalla —</option>
+                {DECO_CATEGORIAS.map(cat => (
+                  <optgroup key={cat} label={cat}>
+                    {MEDALLAS_CATALOGO.filter(m => m.categoria === cat).map(m => (
+                      <option key={m.nombre} value={m.nombre}>{m.nombre}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
             <div>
-              <label style={S.label}>Nombre de la condecoración</label>
-              <input style={S.input} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Cruz al Valor, Medalla de Honor…" />
+              <label style={S.label}>Nombre (editable)</label>
+              <input style={S.input} value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Cruz al Valor…" />
             </div>
             <div>
               <label style={S.label}>Categoría</label>
@@ -2479,11 +2523,11 @@ function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
               </select>
             </div>
             <div style={{ gridColumn: "1 / -1" }}>
-              <label style={S.label}>URL de la imagen de la medalla</label>
-              <input style={S.input} value={imagenUrl} onChange={e => setImagenUrl(e.target.value)} placeholder="/condecoraciones/medalla_honor.png" />
-              {imagenUrl.trim() && (
-                <img src={imagenUrl.trim()} alt="preview" style={{ marginTop: 8, height: 64, objectFit: "contain", background: "#0004", borderRadius: 4, padding: 4 }} />
-              )}
+              <label style={S.label}>Imagen</label>
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                {imagenUrl.trim() && <img src={imagenUrl.trim()} alt="preview" style={{ height: 56, objectFit: "contain", background: "#0004", borderRadius: 4, padding: 4, flexShrink: 0 }} />}
+                <input style={{ ...S.input, flex: 1 }} value={imagenUrl} onChange={e => setImagenUrl(e.target.value)} placeholder="/condecoraciones/combate/1cruzdevalor.png" />
+              </div>
             </div>
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={S.label}>Descripción de la condecoración</label>
