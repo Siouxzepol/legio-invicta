@@ -1770,8 +1770,6 @@ function SalaFamaView({ condecoraciones, roles }) {
     return words.map(w => w[0]).join("").toUpperCase();
   };
 
-  const soldierSVG = "data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 210' fill='%23C9A24A'%3E%3Cellipse cx='40' cy='19' rx='13' ry='15'/%3E%3Crect x='26' y='8' width='28' height='7' rx='3'/%3E%3Cpath d='M20 42 Q40 32 60 42 L64 98 Q52 106 40 106 Q28 106 16 98 Z'/%3E%3Cpath d='M20 48 L4 84 L11 88 L27 56 Z'/%3E%3Cpath d='M60 48 L76 84 L69 88 L53 56 Z'/%3E%3Crect x='24' y='106' width='14' height='62' rx='5'/%3E%3Crect x='42' y='106' width='14' height='62' rx='5'/%3E%3Cellipse cx='31' cy='171' rx='13' ry='7'/%3E%3Cellipse cx='49' cy='171' rx='13' ry='7'/%3E%3C/svg%3E";
-
   return (
     <div style={{
       margin: "-40px -36px 0",
@@ -1820,30 +1818,23 @@ function SalaFamaView({ condecoraciones, roles }) {
                   display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
                   backdropFilter: "blur(6px)",
                   boxShadow: `0 4px 24px rgba(0,0,0,0.7), inset 0 0 40px rgba(201,162,74,0.02)`,
-                  position: "relative", overflow: "hidden",
                 }}>
-                  {/* Silueta soldado */}
-                  <img src={soldierSVG} alt="" aria-hidden="true" style={{
-                    position: "absolute", bottom: 0, left: "50%", transform: "translateX(-50%)",
-                    height: "88%", width: "auto", opacity: 0.06, pointerEvents: "none",
-                    filter: "sepia(1) saturate(3) hue-rotate(5deg)",
-                  }} />
                   {/* Rango abreviado */}
-                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: C.accentDim, letterSpacing: 4, textTransform: "uppercase", position: "relative" }}>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: C.accentDim, letterSpacing: 4, textTransform: "uppercase" }}>
                     {abrevRango(rangoP?.name)}
                   </div>
                   {/* Insignia */}
                   {rangoP?.insigniaUrl
-                    ? <img src={rangoP.insigniaUrl} alt={rangoP.name} style={{ width: 30, height: 40, objectFit: "contain", position: "relative" }} />
-                    : <div style={{ width: 30, height: 40, position: "relative" }} />
+                    ? <img src={rangoP.insigniaUrl} alt={rangoP.name} style={{ width: 30, height: 40, objectFit: "contain" }} />
+                    : <div style={{ width: 30, height: 40 }} />
                   }
                   {/* Nombre */}
-                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.text, letterSpacing: 2, textAlign: "center", textTransform: "uppercase", marginTop: 2, position: "relative" }}>
+                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.text, letterSpacing: 2, textAlign: "center", textTransform: "uppercase", marginTop: 2 }}>
                     {handle}
                   </div>
                   {/* Medallas */}
                   {decoConImg.length > 0 && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center", marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.accent}22`, width: "100%", position: "relative" }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center", marginTop: 8, paddingTop: 8, borderTop: `1px solid ${C.accent}22`, width: "100%" }}>
                       {decoConImg.map(d => (
                         <img key={d._id} src={d.imagenUrl} alt={d.nombre} title={d.nombre} style={{ width: 26, height: 26, objectFit: "contain" }} />
                       ))}
