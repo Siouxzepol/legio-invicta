@@ -301,7 +301,7 @@ export default function App() {
             {view === "operaciones"    && <OperacionesView ops={operaciones} member={member} />}
             {view === "calendario"     && <CalendarioView ops={operaciones} member={member} />}
             {view === "orbat"          && <OrbatView unidades={orbatUnidades} miembros={orbatMiembros} roles={roles} especialidades={especialidades} condecoraciones={condecoraciones} salaFama={salaFama} />}
-            {view === "sala_fama"      && <SalaFamaView salaFama={salaFama} condecoraciones={condecoraciones} />}
+            {view === "sala_fama"      && <SalaFamaView condecoraciones={condecoraciones} roles={roles} />}
             {view === "especialidades" && <EspecialidadesView especialidades={especialidades} />}
             {view === "especialidad"  && espId && <EspecialidadDetalleView espId={espId} member={member} isJefe={isJefe} canDo={canDo} especialidades={especialidades} />}
             {view === "foro"           && <ForoView member={member} isJefe={isJefe} canDo={canDo} hilos={foroHilos} />}
@@ -836,7 +836,7 @@ function AdminPanel({ roles, isJefe, isSuperAdmin, canDo, orbatUnidades, orbatMi
     { id: "orbat",             label: "ORBAT",            show: isJefe || canDo("manage_orbat") },
     { id: "operaciones",       label: "Operaciones",      show: isJefe || canDo("manage_ops") },
     { id: "condecoraciones",   label: "Condecoraciones",  show: isJefe || canDo("manage_condecoraciones") },
-    { id: "sala_fama",         label: "Sala de la Fama",  show: isJefe || canDo("manage_sala_fama") },
+    { id: "sala_fama",         label: "Sala de la Fama",  show: false },
     { id: "sala_mandos",       label: "Sala de Mandos",   show: isJefe },
     { id: "foro",              label: "Foro",             show: isJefe || canDo("forum_mod") },
   ].filter(t => t.show);
@@ -1719,13 +1719,6 @@ function OrbatView({ unidades, miembros, roles, especialidades, condecoraciones,
         </div>
       )}
 
-      {/* Sala de la Fama */}
-      {salaFama?.length > 0 && (
-        <Collapsible title="Sala de la Fama" badge={salaFama.length}>
-          <SalaFamaGrid salaFama={salaFama} condecoraciones={condecoraciones} />
-        </Collapsible>
-      )}
-
       <style>{`
         .orbat-units-row {
           display: flex;
@@ -1759,55 +1752,70 @@ function OrbatView({ unidades, miembros, roles, especialidades, condecoraciones,
 /* ─────────────────────────────────────── */
 /*  VISTA NAV SALA DE LA FAMA              */
 /* ─────────────────────────────────────── */
-function SalaFamaView({ salaFama, condecoraciones }) {
+function SalaFamaView({ condecoraciones, roles }) {
+  const allMembers = useCollection("members");
+
+  const byMember = condecoraciones.filter(d => d.memberId).reduce((acc, d) => {
+    if (!acc[d.memberId]) acc[d.memberId] = { handle: d.memberHandle, decos: [] };
+    acc[d.memberId].decos.push(d);
+    return acc;
+  }, {});
+
+  const entries = Object.entries(byMember).sort((a, b) => b[1].decos.length - a[1].decos.length);
+
   return (
     <div>
       <h2 style={S.h2}>Sala de la Fama</h2>
-      {salaFama.length === 0 ? (
-        <p style={{ color: C.muted }}>La Sala de la Fama está vacía. Configúrala desde el Panel de Mando.</p>
+      {entries.length === 0 ? (
+        <p style={{ color: C.muted }}>Sin condecoraciones registradas todavía.</p>
       ) : (
-        <SalaFamaGrid salaFama={salaFama} condecoraciones={condecoraciones} />
-      )}
-    </div>
-  );
-}
-
-function SalaFamaGrid({ salaFama, condecoraciones }) {
-  const sorted = [...salaFama].sort((a, b) => (a.orden || 0) - (b.orden || 0));
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      {sorted.map(entry => {
-        const decos = condecoraciones.filter(d => (entry.decoIds || []).includes(d._id));
-        return (
-          <div key={entry._id} style={{ ...S.card, borderTop: `3px solid ${C.accent}` }}>
-            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 22, color: C.accent, letterSpacing: 3, marginBottom: 4 }}>
-              {entry.memberHandle}
-            </div>
-            {entry.descripcion && (
-              <div style={{ color: C.muted, fontSize: 13, marginBottom: 16, lineHeight: 1.6 }}>{entry.descripcion}</div>
-            )}
-            {decos.length > 0 && (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
-                {decos.map(d => (
-                  <div key={d._id} style={{ display: "flex", alignItems: "center", gap: 14, background: "#ffffff08", borderRadius: 8, padding: "12px 16px", minWidth: 220 }}>
-                    {d.imagenUrl
-                      ? <img src={d.imagenUrl} alt={d.nombre} style={{ width: 56, height: 56, objectFit: "contain", flexShrink: 0 }} />
-                      : <span style={{ fontSize: 40, flexShrink: 0 }}>🎖</span>
-                    }
-                    <div>
-                      <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, color: C.text, letterSpacing: 1 }}>{d.nombre}</div>
-                      {d.motivo && <div className="rich-text" style={{ color: C.muted, fontSize: 12, marginTop: 4, lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: d.motivo }} />}
-                      {!d.motivo && d.descripcion && <div style={{ color: C.muted, fontSize: 12, marginTop: 3, lineHeight: 1.5 }}>{d.descripcion}</div>}
-                      {d.fecha && <div style={{ color: C.accentDim, fontSize: 11, marginTop: 3 }}>{new Date(d.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}</div>}
-                    </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+          {entries.map(([memberId, { handle, decos }]) => {
+            const mem = allMembers.find(m => m._id === memberId);
+            const memberRoles = roles.filter(r => getMemberRoleIds(mem || {}).includes(r._id));
+            const rangoP = [...memberRoles].sort((a, b) => (b.orden ?? 0) - (a.orden ?? 0)).find(r => r.insigniaUrl)
+              || [...memberRoles].sort((a, b) => (b.orden ?? 0) - (a.orden ?? 0))[0]
+              || null;
+            return (
+              <div key={memberId} style={{ ...S.card, borderTop: `3px solid ${C.accent}` }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
+                  {rangoP?.insigniaUrl && (
+                    <img src={rangoP.insigniaUrl} alt={rangoP.name} style={{ width: 36, height: 48, objectFit: "contain", flexShrink: 0 }} />
+                  )}
+                  <div>
+                    {rangoP && <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 11, color: C.accentDim, letterSpacing: 2, textTransform: "uppercase" }}>{rangoP.name}</div>}
+                    <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 22, color: C.accent, letterSpacing: 3 }}>{handle}</div>
                   </div>
-                ))}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {decos.map(d => (
+                    <div key={d._id} style={{ display: "flex", gap: 16, background: "#ffffff07", borderRadius: 8, padding: "14px 16px", alignItems: "flex-start" }}>
+                      {d.imagenUrl
+                        ? <img src={d.imagenUrl} alt={d.nombre} style={{ width: 56, height: 56, objectFit: "contain", flexShrink: 0 }} />
+                        : <span style={{ fontSize: 40, flexShrink: 0 }}>🎖</span>
+                      }
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 6 }}>
+                          <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 16, color: C.text, letterSpacing: 1 }}>{d.nombre}</span>
+                          {d.categoria && <span style={{ fontSize: 10, padding: "1px 7px", borderRadius: 2, background: `${DECO_CAT_COLOR[d.categoria] || C.accent}22`, color: DECO_CAT_COLOR[d.categoria] || C.accent, border: `1px solid ${DECO_CAT_COLOR[d.categoria] || C.accent}44`, letterSpacing: 1, textTransform: "uppercase", fontFamily: "'Share Tech Mono', monospace" }}>{d.categoria}</span>}
+                          {d.fecha && <span style={{ color: C.accentDim, fontSize: 11 }}>{new Date(d.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}</span>}
+                        </div>
+                        {d.descripcion && <div className="rich-text" style={{ color: C.muted, fontSize: 12, lineHeight: 1.7, marginBottom: d.motivo ? 10 : 0 }} dangerouslySetInnerHTML={{ __html: d.descripcion }} />}
+                        {d.motivo && (
+                          <div style={{ borderLeft: `2px solid ${C.accent}55`, paddingLeft: 10 }}>
+                            <div style={{ fontSize: 10, letterSpacing: 2, color: C.accentDim, textTransform: "uppercase", fontFamily: "'Share Tech Mono', monospace", marginBottom: 4 }}>Motivo del otorgamiento</div>
+                            <div className="rich-text" style={{ color: C.text, fontSize: 13, lineHeight: 1.7 }} dangerouslySetInnerHTML={{ __html: d.motivo }} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            )}
-            {decos.length === 0 && <p style={{ color: C.muted, fontSize: 13, margin: 0 }}>Sin condecoraciones registradas.</p>}
-          </div>
-        );
-      })}
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
