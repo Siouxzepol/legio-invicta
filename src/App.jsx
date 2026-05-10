@@ -2441,6 +2441,8 @@ function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
   const [motivo,    setMotivo]    = useState("");
   const [fecha,     setFecha]     = useState("");
   const [imagenUrl, setImagenUrl] = useState("");
+  const [asignarId, setAsignarId] = useState(null);
+  const [asignarSelId, setAsignarSelId] = useState("");
 
   const canEdit = isJefe || canDo("manage_condecoraciones");
 
@@ -2455,20 +2457,27 @@ function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
   };
 
   const save = async () => {
-    if (!selId || !nombre.trim()) return;
+    if (!nombre.trim()) return;
     const mem = activeMembers.find(m => m._id === selId);
     await fbAdd("condecoraciones", {
-      memberId:    selId,
-      memberHandle: mem?.handle || "",
-      nombre:      nombre.trim(),
+      memberId:     selId || null,
+      memberHandle: mem?.handle || null,
+      nombre:       nombre.trim(),
       categoria,
       descripcion,
       motivo,
-      fecha:       fecha || null,
-      imagenUrl:   imagenUrl.trim() || null,
-      otorgadoPor: member.handle,
+      fecha:        fecha || null,
+      imagenUrl:    imagenUrl.trim() || null,
+      otorgadoPor:  member.handle,
     });
     resetForm();
+  };
+
+  const confirmarAsignacion = async () => {
+    if (!asignarSelId || !asignarId) return;
+    const mem = activeMembers.find(m => m._id === asignarSelId);
+    await fbSet("condecoraciones", asignarId, { memberId: asignarSelId, memberHandle: mem?.handle || "" });
+    setAsignarId(null); setAsignarSelId("");
   };
 
   const del = async d => {
@@ -2476,7 +2485,8 @@ function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
     await fbDel("condecoraciones", d._id);
   };
 
-  const byMember = condecoraciones.reduce((acc, d) => {
+  const sinAsignar = condecoraciones.filter(d => !d.memberId);
+  const byMember = condecoraciones.filter(d => d.memberId).reduce((acc, d) => {
     if (!acc[d.memberId]) acc[d.memberId] = { handle: d.memberHandle, decos: [] };
     acc[d.memberId].decos.push(d);
     return acc;
@@ -2489,9 +2499,9 @@ function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
           <h3 style={S.h3}>Otorgar condecoración</h3>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
             <div>
-              <label style={S.label}>Militar</label>
+              <label style={S.label}>Militar <span style={{ color: C.muted, fontWeight: 400 }}>(opcional — se puede asignar después)</span></label>
               <select style={S.input} value={selId} onChange={e => setSelId(e.target.value)}>
-                <option value="">— Seleccionar —</option>
+                <option value="">— Sin asignar de momento —</option>
                 {activeMembers.map(m => <option key={m._id} value={m._id}>@{m.handle}{m.displayName && m.displayName !== m.handle ? ` — ${m.displayName}` : ""}</option>)}
               </select>
             </div>
@@ -2540,14 +2550,64 @@ function TabCondecoraciones({ condecoraciones, member, isJefe, canDo }) {
               <LegioEditor content={motivo} onChange={setMotivo} minHeight={120} stickyTop={96} />
             </div>
           </div>
-          <button style={S.btn("primary")} onClick={save} disabled={!selId || !nombre.trim()}>Otorgar</button>
+          <button style={S.btn("primary")} onClick={save} disabled={!nombre.trim()}>Guardar condecoración</button>
+        </div>
+      )}
+
+      {/* Sin asignar */}
+      {sinAsignar.length > 0 && (
+        <div style={{ ...S.card, marginBottom: 16, borderLeft: `3px solid ${C.muted}` }}>
+          <h3 style={{ ...S.h3, color: C.muted }}>Sin asignar ({sinAsignar.length})</h3>
+          {sinAsignar.map(d => (
+            <div key={d._id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0 8px 12px", borderBottom: `1px solid ${C.border}20` }}>
+              {d.imagenUrl
+                ? <img src={d.imagenUrl} alt={d.nombre} style={{ width: 32, height: 32, objectFit: "contain", flexShrink: 0 }} />
+                : <span style={{ fontSize: 16, flexShrink: 0 }}>🎖</span>
+              }
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13 }}>{d.nombre}</span>
+                  {d.categoria && (
+                    <span style={{ fontSize: 10, padding: "1px 7px", borderRadius: 2, background: `${DECO_CAT_COLOR[d.categoria] || C.accent}22`, color: DECO_CAT_COLOR[d.categoria] || C.accent, border: `1px solid ${DECO_CAT_COLOR[d.categoria] || C.accent}44`, letterSpacing: 1, textTransform: "uppercase", fontFamily: "'Share Tech Mono', monospace" }}>{d.categoria}</span>
+                  )}
+                </div>
+                {d.fecha && <span style={{ color: C.muted, fontSize: 11 }}>{new Date(d.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}</span>}
+              </div>
+              {canEdit && (
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  <button style={{ ...S.btn("primary"), padding: "3px 10px", fontSize: 11 }} onClick={() => { setAsignarId(d._id); setAsignarSelId(""); }}>Asignar</button>
+                  <button style={{ ...S.btn("danger"), padding: "3px 8px", fontSize: 11 }} onClick={() => del(d)}>✕</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal asignar militar */}
+      {asignarId && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 200, padding: 24 }}>
+          <div style={{ ...S.card, width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", gap: 14 }}>
+            <h3 style={S.h3}>Asignar militar</h3>
+            <div>
+              <label style={S.label}>Militar</label>
+              <select style={S.input} value={asignarSelId} onChange={e => setAsignarSelId(e.target.value)}>
+                <option value="">— Seleccionar —</option>
+                {activeMembers.map(m => <option key={m._id} value={m._id}>@{m.handle}{m.displayName && m.displayName !== m.handle ? ` — ${m.displayName}` : ""}</option>)}
+              </select>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button style={S.btn("primary")} onClick={confirmarAsignacion} disabled={!asignarSelId}>Confirmar</button>
+              <button style={S.btn("secondary")} onClick={() => setAsignarId(null)}>Cancelar</button>
+            </div>
+          </div>
         </div>
       )}
 
       <div style={S.card}>
-        <h3 style={S.h3}>Registro de condecoraciones ({condecoraciones.length})</h3>
-        {condecoraciones.length === 0 ? (
-          <p style={{ color: C.muted }}>Sin condecoraciones registradas.</p>
+        <h3 style={S.h3}>Registro de condecoraciones ({condecoraciones.filter(d=>d.memberId).length})</h3>
+        {!condecoraciones.some(d => d.memberId) ? (
+          <p style={{ color: C.muted }}>Sin condecoraciones asignadas todavía.</p>
         ) : Object.entries(byMember).map(([memberId, { handle, decos }]) => (
           <div key={memberId} style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 11, letterSpacing: 2, color: C.accent, fontFamily: "'Oswald', sans-serif", marginBottom: 6, textTransform: "uppercase" }}>
