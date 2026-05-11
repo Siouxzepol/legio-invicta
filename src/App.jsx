@@ -3682,38 +3682,50 @@ function EspecialidadesView({ especialidades, roles, member, operaciones, orbatM
       <div onClick={() => setSelEsp(esp)} style={{
         background: isSel ? color + "10" : C.surface,
         border: `1px solid ${isSel ? color + "88" : C.border}`,
-        borderLeft: `3px solid ${isSel ? color : color + "44"}`,
-        borderRadius: 8, padding: "16px", cursor: "pointer", transition: "all 0.15s",
-        display: "flex", flexDirection: "column", gap: 10,
+        borderRadius: 8, cursor: "pointer", transition: "all 0.15s",
+        display: "flex", flexDirection: "column", overflow: "hidden",
+        boxShadow: isSel ? `0 0 20px ${color}22` : "none",
       }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-          {esp.portadaUrl
-            ? <img src={esp.portadaUrl} alt={esp.nombre} style={{ width: 48, height: 48, objectFit: "cover", objectPosition: "center top", borderRadius: 4, border: `1px solid ${color}44`, flexShrink: 0 }} />
-            : <div style={{ width: 48, height: 48, borderRadius: 4, background: color + "22", border: `1px solid ${color}44`, flexShrink: 0 }} />
-          }
-          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 26, fontWeight: 700, color: isSel ? color : C.muted, lineHeight: 1 }}>
-            {efectivos.length}
+        {/* Imagen banner */}
+        {esp.portadaUrl ? (
+          <div style={{ position: "relative", height: 140, overflow: "hidden", flexShrink: 0 }}>
+            <img src={esp.portadaUrl} alt={esp.nombre} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", transition: "filter 0.2s", filter: isSel ? "brightness(0.85)" : "brightness(0.55)" }} />
+            <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to top, ${C.surface} 0%, transparent 55%)` }} />
+            <div style={{ position: "absolute", top: 10, right: 10, fontFamily: "'Oswald', sans-serif", fontSize: 22, fontWeight: 700, color: isSel ? color : "rgba(255,255,255,0.6)", lineHeight: 1 }}>
+              {efectivos.length}
+            </div>
+            <div style={{ position: "absolute", top: 10, left: 10 }}>
+              <div style={{ width: 4, height: 28, borderRadius: 2, background: color }} />
+            </div>
           </div>
-        </div>
-        <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, fontWeight: 700, color: isSel ? color : C.text, letterSpacing: 2, textTransform: "uppercase", lineHeight: 1.2 }}>
-          {esp.nombre}
-        </div>
-        {esp.descripcion && (
-          <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: C.muted, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", flex: 1 }}>
-            {esp.descripcion}
+        ) : (
+          <div style={{ height: 80, background: color + "18", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", flexShrink: 0, borderBottom: `1px solid ${color}22` }}>
+            <div style={{ width: 4, height: 28, borderRadius: 2, background: color }} />
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 28, fontWeight: 700, color: isSel ? color : C.muted }}>{efectivos.length}</div>
           </div>
         )}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto", paddingTop: 6, borderTop: `1px solid ${C.border}` }}>
-          <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, letterSpacing: 1 }}>
-            {efectivos.length} EFECTIVOS
-          </span>
-          <button onClick={e => { e.stopPropagation(); onGoToEfectivos(esp._id); }} style={{
-            background: "transparent", border: "none", padding: 0,
-            color: color + "cc", fontFamily: "'Oswald', sans-serif", fontSize: 10,
-            letterSpacing: 1, cursor: "pointer", textTransform: "uppercase",
-          }}>
-            VER EFECTIVOS →
-          </button>
+        {/* Contenido */}
+        <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>
+          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 16, fontWeight: 700, color: isSel ? color : C.text, letterSpacing: 2, textTransform: "uppercase", lineHeight: 1.2 }}>
+            {esp.nombre}
+          </div>
+          {esp.descripcion && (
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: C.muted, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", flex: 1 }}>
+              {esp.descripcion}
+            </div>
+          )}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: 8, borderTop: `1px solid ${C.border}` }}>
+            <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, letterSpacing: 1 }}>
+              {efectivos.length} EFECTIVOS
+            </span>
+            <button onClick={e => { e.stopPropagation(); onGoToEfectivos(esp._id); }} style={{
+              background: "transparent", border: "none", padding: 0,
+              color: color, fontFamily: "'Oswald', sans-serif", fontSize: 11,
+              letterSpacing: 1, cursor: "pointer", textTransform: "uppercase",
+            }}>
+              VER EFECTIVOS →
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -3757,7 +3769,7 @@ function EspecialidadesView({ especialidades, roles, member, operaciones, orbatM
         <div style={{ flex: 1 }}>
           {especialidades.length === 0
             ? <p style={{ color: C.muted }}>Sin especialidades definidas.</p>
-            : <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+            : <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
                 {especialidades.map(e => <EspCard key={e._id} esp={e} />)}
               </div>
           }
@@ -3827,14 +3839,15 @@ function EspEfectivosView({ espId, especialidades, roles, member, operaciones, o
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
       {/* Portada */}
       {esp.portadaUrl && (
-        <div style={{ borderRadius: "8px 8px 0 0", overflow: "hidden", height: 120 }}>
-          <img src={esp.portadaUrl} alt={esp.nombre} style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.6)" }} />
+        <div style={{ borderRadius: "8px 8px 0 0", overflow: "hidden", height: 180, position: "relative" }}>
+          <img src={esp.portadaUrl} alt={esp.nombre} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }} />
+          <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to top, ${C.surface} 0%, transparent 50%)` }} />
         </div>
       )}
-      <div style={{ background: C.surface, border: `1px solid ${color}33`, borderTop: esp.portadaUrl ? "none" : undefined, borderRadius: esp.portadaUrl ? "0 0 8px 8px" : 8, padding: "18px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ background: C.surface, border: `1px solid ${color}33`, borderTop: esp.portadaUrl ? "none" : undefined, borderRadius: esp.portadaUrl ? "0 0 8px 8px" : 8, padding: "20px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
         {/* Nombre */}
         <div>
-          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 20, fontWeight: 700, color, letterSpacing: 3, textTransform: "uppercase" }}>{esp.nombre}</div>
+          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 22, fontWeight: 700, color, letterSpacing: 3, textTransform: "uppercase" }}>{esp.nombre}</div>
           {esp.descripcion && (
             <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>{esp.descripcion}</div>
           )}
@@ -3946,7 +3959,7 @@ function EspEfectivosView({ espId, especialidades, roles, member, operaciones, o
 
   return (
     <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-      <div style={{ width: 240, flexShrink: 0 }}>{sidebar}</div>
+      <div style={{ width: 290, flexShrink: 0 }}>{sidebar}</div>
       <div style={{ flex: 1, overflowX: "auto" }}>{tabla}</div>
     </div>
   );
