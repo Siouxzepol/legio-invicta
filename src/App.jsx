@@ -1451,10 +1451,11 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
   const [uParentId, setUParentId] = useState("");
   const [editUId,   setEditUId]   = useState(null);
 
-  const [mMemberId, setMMemberId] = useState("");
-  const [mEspIds,   setMEspIds]   = useState([]);
-  const [mUnidadId, setMUnidadId] = useState("");
-  const [editMId,   setEditMId]   = useState(null);
+  const [mMemberId,      setMMemberId]      = useState("");
+  const [mEspIds,        setMEspIds]        = useState([]);
+  const [mEspPrincipalId,setMEspPrincipalId]= useState("");
+  const [mUnidadId,      setMUnidadId]      = useState("");
+  const [editMId,        setEditMId]        = useState(null);
 
   const toggleEsp = id => setMEspIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
@@ -1505,11 +1506,12 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
     if (!mMemberId || !mUnidadId) return;
     const mem = allMembers.find(m => m._id === mMemberId);
     const data = {
-      memberId: mMemberId,
-      nombre:   mem?.displayName || mem?.handle || "",
-      handle:   mem?.handle || "",
-      espIds:   mEspIds,
-      unidadId: mUnidadId,
+      memberId:       mMemberId,
+      nombre:         mem?.displayName || mem?.handle || "",
+      handle:         mem?.handle || "",
+      espIds:         mEspIds,
+      espPrincipalId: mEspIds.includes(mEspPrincipalId) ? mEspPrincipalId : (mEspIds[0] || ""),
+      unidadId:       mUnidadId,
     };
     if (editMId) {
       await fbUpd("orbat_miembros", editMId, data);
@@ -1518,7 +1520,7 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
       const maxOrden = miembros.filter(m => m.unidadId === mUnidadId).reduce((mx, m) => Math.max(mx, m.orden || 0), 0);
       await fbAdd("orbat_miembros", { ...data, orden: maxOrden + 1 });
     }
-    setMMemberId(""); setMEspIds([]); setMUnidadId("");
+    setMMemberId(""); setMEspIds([]); setMEspPrincipalId(""); setMUnidadId("");
   };
 
   const delMiembro = async m => {
@@ -1635,6 +1637,18 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
                 )
               }
             </div>
+            {mEspIds.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <label style={S.label}>Especialidad principal (visible en perfil)</label>
+                <select style={S.input} value={mEspPrincipalId} onChange={e => setMEspPrincipalId(e.target.value)}>
+                  <option value="">— Primera asignada —</option>
+                  {mEspIds.map(id => {
+                    const esp = especialidades.find(e => e._id === id);
+                    return esp ? <option key={id} value={id}>{esp.nombre}</option> : null;
+                  })}
+                </select>
+              </div>
+            )}
             <div style={{ marginBottom: 16 }}>
               <label style={S.label}>Unidad</label>
               <select style={S.input} value={mUnidadId} onChange={e => setMUnidadId(e.target.value)}>
@@ -1645,7 +1659,7 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
             <div style={{ display: "flex", gap: 8 }}>
               <button style={S.btn("primary")} onClick={saveMiembro}>{editMId ? "Guardar" : "Añadir"}</button>
               {editMId && (
-                <button style={S.btn("ghost")} onClick={() => { setEditMId(null); setMMemberId(""); setMEspIds([]); setMUnidadId(""); }}>
+                <button style={S.btn("ghost")} onClick={() => { setEditMId(null); setMMemberId(""); setMEspIds([]); setMEspPrincipalId(""); setMUnidadId(""); }}>
                   Cancelar
                 </button>
               )}
@@ -1681,7 +1695,7 @@ function TabOrbat({ unidades, miembros, isJefe, canDo, roles, especialidades }) 
                     {canEdit && (
                       <>
                         <button style={{ ...S.btn("ghost"), padding: "3px 7px", fontSize: 11 }}
-                          onClick={() => { setEditMId(m._id); setMMemberId(m.memberId || ""); setMEspIds(m.espIds || []); setMUnidadId(m.unidadId); }}>✎</button>
+                          onClick={() => { setEditMId(m._id); setMMemberId(m.memberId || ""); setMEspIds(m.espIds || []); setMEspPrincipalId(m.espPrincipalId || ""); setMUnidadId(m.unidadId); }}>✎</button>
                         <button style={{ ...S.btn("danger"), padding: "3px 7px", fontSize: 11 }} onClick={() => delMiembro(m)}>✕</button>
                       </>
                     )}
@@ -2225,144 +2239,219 @@ function TabEspGuias({ esp, guias, onBack }) {
 /*  VISTA PÚBLICA HOJA DE SERVICIO         */
 /* ─────────────────────────────────────── */
 function HojaServicioView({ member, roles, operaciones, orbatMiembros, orbatUnidades, especialidades, condecoraciones }) {
+  const isMobile    = useIsMobile();
   const orbatEntry  = orbatMiembros.find(m => m.memberId === member._id);
   const unidad      = orbatEntry ? orbatUnidades.find(u => u._id === orbatEntry.unidadId) : null;
   const memberRoles = roles.filter(r => getMemberRoleIds(member).includes(r._id));
-  const memberEsps  = orbatEntry ? especialidades.filter(e => (orbatEntry.espIds || []).includes(e._id)) : [];
+  const rangoP      = memberRoles.find(r => r.insigniaUrl) || memberRoles[0] || null;
   const misAccesos  = useCollection("especialidad_accesos", orderBy("createdAt", "desc")).filter(a => a.memberId === member._id);
+
+  const espPrincipalId = orbatEntry?.espPrincipalId || (orbatEntry?.espIds || [])[0] || null;
+  const espPrincipal   = espPrincipalId ? especialidades.find(e => e._id === espPrincipalId) : null;
 
   const opsHistory     = operaciones.filter(op => op.asistencia?.[member._id]);
   const opsConfirmadas = opsHistory.filter(op => op.asistencia[member._id] === "confirmada");
   const myDecos        = condecoraciones.filter(d => d.memberId === member._id);
+  const asistenciaPct  = opsHistory.length > 0 ? Math.round((opsConfirmadas.length / opsHistory.length) * 100) : 0;
+  const ultimaOp       = opsHistory.slice().sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""))[0] || null;
 
-  return (
-    <div>
-      <h2 style={S.h2}>Hoja de Servicio</h2>
+  const fmtFecha = fecha => fecha
+    ? new Date(fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase()
+    : "—";
 
-      {/* Cabecera */}
-      <div style={{ ...S.card, marginBottom: 24, borderLeft: `4px solid ${C.accent}` }}>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 20, flexWrap: "wrap" }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 22, marginBottom: 4 }}>
+  const emblemaUrl  = unidad?.emblemUrl || null;
+  const emblemaInfo = unidad ? unidad.nombre.toUpperCase() : "SIN UNIDAD ASIGNADA";
+
+  /* ── CABECERA FULL-WIDTH ── */
+  const Header = () => (
+    <div style={{
+      position: "relative", overflow: "hidden",
+      background: `linear-gradient(135deg, rgba(6,5,4,0.97) 0%, rgba(42,10,10,0.92) 50%, rgba(6,5,4,0.97) 100%)`,
+      border: `1px solid ${C.accent}22`, borderRadius: 10,
+      marginBottom: 20, minHeight: isMobile ? "auto" : 200,
+    }}>
+      {/* fondo sutil */}
+      <div style={{ position: "absolute", inset: 0, backgroundImage: "url(/imagenparainicio.jpg)", backgroundSize: "cover", backgroundPosition: "center", opacity: 0.08, pointerEvents: "none" }} />
+      <div style={{ position: "relative", display: "flex", alignItems: "stretch", gap: 0, flexWrap: isMobile ? "wrap" : "nowrap" }}>
+
+        {/* IZQUIERDA — avatar + datos */}
+        <div style={{ display: "flex", alignItems: "center", gap: 20, padding: isMobile ? "20px 16px" : "28px 32px", flex: 1, minWidth: 0 }}>
+          <div style={{ position: "relative", flexShrink: 0 }}>
+            <div style={{ width: isMobile ? 72 : 100, height: isMobile ? 72 : 100, borderRadius: "50%", overflow: "hidden", border: `2px solid ${C.accent}55`, background: "#0a0c08" }}>
+              <img src="/fotodefaultmihoja.png" alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }} />
+            </div>
+            <div style={{ position: "absolute", bottom: 2, right: 2, width: 12, height: 12, borderRadius: "50%", background: C.green, border: "2px solid #0a0c08" }} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: isMobile ? 20 : 28, fontWeight: 700, color: C.accent, letterSpacing: 3, textTransform: "uppercase", lineHeight: 1 }}>
               {member.displayName || member.handle}
             </div>
             {member.displayName && member.displayName !== member.handle && (
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color: C.accent, marginBottom: 10 }}>
-                @{member.handle}
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: C.muted, letterSpacing: 2, marginTop: 2 }}>@{member.handle}</div>
+            )}
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.text, letterSpacing: 2, marginTop: 4, textTransform: "uppercase" }}>
+              {rangoP ? rangoP.name : "SIN RANGO"}
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8, alignItems: "center" }}>
+              <span style={{ ...S.badge(C.green), fontSize: 10 }}>● ACTIVO</span>
+              {espPrincipal && (
+                <span style={{ ...S.badge(espPrincipal.color || C.accentDim), fontSize: 10 }}>{espPrincipal.nombre}</span>
+              )}
+            </div>
+            {member.createdAt && (
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, letterSpacing: 1, marginTop: 8 }}>
+                INCORPORACIÓN: {new Date(member.createdAt.seconds ? member.createdAt.seconds * 1000 : member.createdAt).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase()}
               </div>
             )}
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {memberRoles.map(r => <span key={r._id} style={S.badge(C.accent)}>{r.name}</span>)}
-              {!memberRoles.length && <span style={{ color: C.muted, fontSize: 12 }}>Sin rango asignado</span>}
-            </div>
           </div>
-          {unidad && (
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 11, color: C.muted, letterSpacing: 2, fontFamily: "'Oswald', sans-serif", marginBottom: 4 }}>UNIDAD</div>
-              <div style={{ color: unidad.color || C.accent, fontFamily: "'Oswald', sans-serif", fontSize: 14, letterSpacing: 2 }}>{unidad.nombre}</div>
-            </div>
-          )}
         </div>
-      </div>
 
-      {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 24 }}>
-        {[
-          { label: "Ops. confirmadas", value: opsConfirmadas.length, color: C.green },
-          { label: "Total en registro", value: opsHistory.length,    color: C.accent },
-          { label: "Condecoraciones",   value: myDecos.length,       color: C.accentDim },
-        ].map(s => (
-          <div key={s.label} style={{ ...S.card, textAlign: "center" }}>
-            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 36, color: s.color, lineHeight: 1 }}>{s.value}</div>
-            <div style={{ color: C.muted, fontSize: 11, letterSpacing: 1, marginTop: 8, fontFamily: "'Oswald', sans-serif", textTransform: "uppercase" }}>{s.label}</div>
+        {/* CENTRO — emblema */}
+        {!isMobile && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "28px 40px", borderLeft: `1px solid ${C.accent}15`, borderRight: `1px solid ${C.accent}15`, minWidth: 160 }}>
+            <img
+              src={emblemaUrl || "/logo.png"}
+              alt="emblema"
+              style={{ width: 90, height: 90, objectFit: "contain", opacity: emblemaUrl ? 0.9 : 0.4, filter: emblemaUrl ? "none" : "grayscale(0.4)" }}
+            />
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: emblemaUrl ? (unidad?.color || C.accent) : C.muted, letterSpacing: 2, marginTop: 8, textAlign: "center", textTransform: "uppercase" }}>
+              {emblemaInfo}
+            </div>
           </div>
-        ))}
-      </div>
+        )}
 
-      {/* Historial + Condecoraciones */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-        <div style={S.card}>
-          <h3 style={S.h3}>Historial de operaciones</h3>
-          {opsHistory.length === 0 ? (
-            <p style={{ color: C.muted, fontSize: 13 }}>Sin operaciones registradas.</p>
-          ) : opsHistory.map(op => {
+        {/* DERECHA — stats rápidas */}
+        {!isMobile && (
+          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 10, padding: "28px 28px", minWidth: 180 }}>
+            <div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: C.muted, letterSpacing: 2 }}>ÚLTIMA OPERACIÓN</div>
+              <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.text, marginTop: 2 }}>
+                {ultimaOp ? ultimaOp.nombre.toUpperCase() : "—"}
+              </div>
+              {ultimaOp?.fecha && (
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.accent }}>{fmtFecha(ultimaOp.fecha)}</div>
+              )}
+            </div>
+            <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: C.muted, letterSpacing: 2 }}>ASISTENCIA MEDIA</div>
+              <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 22, color: asistenciaPct >= 70 ? C.green : asistenciaPct >= 40 ? "#f59e0b" : C.danger, marginTop: 2 }}>
+                {opsHistory.length > 0 ? `${asistenciaPct}%` : "—"}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  /* ── STATS ROW ── */
+  const StatsRow = () => (
+    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)", gap: 10, marginBottom: 20 }}>
+      {[
+        { label: "OPS CONFIRMADAS", val: opsConfirmadas.length, color: C.green   },
+        { label: "PARTICIPACIONES",  val: opsHistory.length,     color: C.accent  },
+        { label: "CONDECORACIONES",  val: myDecos.length,        color: C.accentDim },
+        { label: "FORMACIÓN",        val: misAccesos.filter(a => a.estado === "aprobado" || a.estado === "admitido").length, color: "#06b6d4" },
+        { label: "% ASISTENCIA",     val: opsHistory.length > 0 ? `${asistenciaPct}%` : "—", color: asistenciaPct >= 70 ? C.green : asistenciaPct >= 40 ? "#f59e0b" : C.danger },
+      ].map(s => (
+        <div key={s.label} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "14px 12px", textAlign: "center" }}>
+          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 28, fontWeight: 700, color: s.color, lineHeight: 1 }}>{s.val}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: C.muted, letterSpacing: 1, marginTop: 6, textTransform: "uppercase" }}>{s.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+
+  /* ── HISTORIAL DE OPS ── */
+  const HistorialOps = () => (
+    <div style={{ ...S.card, padding: "18px 20px" }}>
+      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, letterSpacing: 3, marginBottom: 12 }}>// HISTORIAL DE OPERACIONES</div>
+      {opsHistory.length === 0
+        ? <p style={{ color: C.muted, fontSize: 13 }}>Sin operaciones registradas.</p>
+        : opsHistory.map(op => {
             const asVal = op.asistencia[member._id];
+            const est   = OP_ESTADOS[op.estado] || {};
             return (
               <div key={op._id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: `1px solid ${C.border}20` }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13 }}>{op.nombre}</div>
-                  <div style={{ display: "flex", gap: 6, marginTop: 3, flexWrap: "wrap", alignItems: "center" }}>
-                    <span style={S.badge(C.accentDim)}>{op.tipo}</span>
-                    {op.fecha && (
-                      <span style={{ color: C.muted, fontSize: 11 }}>
-                        {new Date(op.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}
-                      </span>
-                    )}
+                <div style={{ width: 3, height: 32, borderRadius: 2, background: asVal === "confirmada" ? C.green : asVal === "duda" ? "#f59e0b" : C.danger, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 12, color: C.text, textTransform: "uppercase", letterSpacing: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{op.nombre}</div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 2, alignItems: "center", flexWrap: "wrap" }}>
+                    {op.tipo && <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.accentDim }}>{op.tipo}</span>}
+                    {op.fecha && <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted }}>{fmtFecha(op.fecha)}</span>}
                   </div>
                 </div>
-                <span style={S.badge(asVal === "confirmada" ? C.green : asVal === "duda" ? "#f59e0b" : C.danger)}>
-                  {asVal === "confirmada" ? "Asistió" : asVal === "duda" ? "Duda" : "Baja"}
+                <span style={{ ...S.badge(asVal === "confirmada" ? C.green : asVal === "duda" ? "#f59e0b" : C.danger), fontSize: 10, flexShrink: 0 }}>
+                  {asVal === "confirmada" ? "ASISTIÓ" : asVal === "duda" ? "DUDA" : "BAJA"}
                 </span>
               </div>
             );
-          })}
-        </div>
+          })
+      }
+    </div>
+  );
 
-        <div style={S.card}>
-          <h3 style={S.h3}>Condecoraciones</h3>
-          {myDecos.length === 0 ? (
-            <p style={{ color: C.muted, fontSize: 13 }}>Sin condecoraciones.</p>
-          ) : myDecos.map(d => (
-            <div key={d._id} style={{ padding: "10px 0", borderBottom: `1px solid ${C.border}20` }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                {d.imagenUrl
-                  ? <img src={d.imagenUrl} alt={d.nombre} style={{ width: 24, height: 24, objectFit: "contain", flexShrink: 0 }} />
-                  : <span style={{ fontSize: 18 }}>🎖</span>
-                }
-                <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, color: C.accent }}>{d.nombre}</span>
-                {d.fecha && <span style={{ color: C.muted, fontSize: 11 }}>{new Date(d.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}</span>}
-              </div>
-              {d.descripcion && (
-                <div className="rich-text" style={{ color: C.muted, fontSize: 12, paddingLeft: 30, lineHeight: 1.6, marginTop: 2 }}
-                  dangerouslySetInnerHTML={{ __html: d.descripcion }} />
-              )}
-              {d.motivo && (
-                <div style={{ paddingLeft: 30, marginTop: 6 }}>
-                  <div style={{ fontSize: 10, color: C.accentDim, letterSpacing: 2, fontFamily: "'Share Tech Mono', monospace", marginBottom: 3 }}>MOTIVO</div>
-                  <div className="rich-text" style={{ color: C.muted, fontSize: 12, lineHeight: 1.6 }}
-                    dangerouslySetInnerHTML={{ __html: d.motivo }} />
-                </div>
-              )}
-              <div style={{ display: "flex", gap: 10, paddingLeft: 26, marginTop: 4 }}>
-                {d.fecha && (
-                  <span style={{ color: C.muted, fontSize: 11 }}>
-                    {new Date(d.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}
-                  </span>
-                )}
-                {d.otorgadoPor && <span style={{ color: C.muted, fontSize: 11 }}>por @{d.otorgadoPor}</span>}
+  /* ── CONDECORACIONES ── */
+  const Condecoraciones = () => (
+    <div style={{ ...S.card, padding: "18px 20px" }}>
+      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, letterSpacing: 3, marginBottom: 12 }}>// CONDECORACIONES</div>
+      {myDecos.length === 0
+        ? <p style={{ color: C.muted, fontSize: 13 }}>Sin condecoraciones registradas.</p>
+        : myDecos.map(d => (
+          <div key={d._id} style={{ padding: "10px 0", borderBottom: `1px solid ${C.border}20` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              {d.imagenUrl
+                ? <img src={d.imagenUrl} alt={d.nombre} style={{ width: 28, height: 28, objectFit: "contain", flexShrink: 0 }} />
+                : <div style={{ width: 28, height: 28, background: C.accentDim + "33", borderRadius: 4, flexShrink: 0 }} />
+              }
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.accent, textTransform: "uppercase", letterSpacing: 1 }}>{d.nombre}</div>
+                {d.fecha && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted }}>{fmtFecha(d.fecha)}</div>}
               </div>
             </div>
-          ))}
-        </div>
-      </div>
+            {d.descripcion && (
+              <div className="rich-text" style={{ color: C.muted, fontSize: 12, paddingLeft: 36, lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: d.descripcion }} />
+            )}
+            {d.motivo && (
+              <div style={{ paddingLeft: 36, marginTop: 6 }}>
+                <div style={{ fontSize: 9, color: C.accentDim, letterSpacing: 2, fontFamily: "'Share Tech Mono', monospace", marginBottom: 3 }}>MOTIVO</div>
+                <div className="rich-text" style={{ color: C.muted, fontSize: 12, lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: d.motivo }} />
+              </div>
+            )}
+          </div>
+        ))
+      }
+    </div>
+  );
 
-      {/* Formación especializada */}
-      <div style={{ ...S.card, marginTop: 24 }}>
-        <h3 style={S.h3}>Formación especializada</h3>
-        {misAccesos.length === 0
-          ? <p style={{ color: C.muted, fontSize: 13 }}>Sin solicitudes de formación registradas.</p>
-          : <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
-              {misAccesos.map(a => (
-                <div key={a._id} style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "12px 16px", minWidth: 180 }}>
-                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, color: C.text, marginBottom: 6 }}>{a.espNombre}</div>
-                  <span style={{ ...S.badge(espEstadoColor(a.estado)), fontSize: 11 }}>{espEstadoLabel(a.estado)}</span>
-                  {a.otorgadoPor && (
-                    <div style={{ color: C.muted, fontSize: 11, marginTop: 6 }}>por {a.otorgadoPor}</div>
-                  )}
-                </div>
-              ))}
+  /* ── FORMACIÓN ── */
+  const Formacion = () => (
+    <div style={{ ...S.card, padding: "18px 20px" }}>
+      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, letterSpacing: 3, marginBottom: 12 }}>// FORMACIÓN ESPECIALIZADA</div>
+      {misAccesos.length === 0
+        ? <p style={{ color: C.muted, fontSize: 13 }}>Sin solicitudes de formación.</p>
+        : misAccesos.map(a => (
+          <div key={a._id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${C.border}20` }}>
+            <div style={{ width: 3, height: 32, borderRadius: 2, background: espEstadoColor(a.estado), flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 12, color: C.text, textTransform: "uppercase", letterSpacing: 1 }}>{a.espNombre}</div>
+              {a.otorgadoPor && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, marginTop: 2 }}>por {a.otorgadoPor}</div>}
             </div>
-        }
+            <span style={{ ...S.badge(espEstadoColor(a.estado)), fontSize: 10, flexShrink: 0 }}>{espEstadoLabel(a.estado)}</span>
+          </div>
+        ))
+      }
+    </div>
+  );
+
+  return (
+    <div>
+      <Header />
+      <StatsRow />
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 16 }}>
+        <HistorialOps />
+        <Condecoraciones />
+        <Formacion />
       </div>
     </div>
   );
