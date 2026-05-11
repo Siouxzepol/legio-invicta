@@ -3688,20 +3688,18 @@ function EspecialidadesView({ especialidades, roles, member, operaciones, orbatM
       }}>
         {/* Imagen banner */}
         {esp.portadaUrl ? (
-          <div style={{ position: "relative", height: 140, overflow: "hidden", flexShrink: 0 }}>
-            <img src={esp.portadaUrl} alt={esp.nombre} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", transition: "filter 0.2s", filter: isSel ? "brightness(0.85)" : "brightness(0.55)" }} />
-            <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to top, ${C.surface} 0%, transparent 55%)` }} />
-            <div style={{ position: "absolute", top: 10, right: 10, fontFamily: "'Oswald', sans-serif", fontSize: 22, fontWeight: 700, color: isSel ? color : "rgba(255,255,255,0.6)", lineHeight: 1 }}>
+          <div style={{ position: "relative", height: 90, overflow: "hidden", flexShrink: 0 }}>
+            <img src={esp.portadaUrl} alt={esp.nombre} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%", filter: isSel ? "brightness(0.5)" : "brightness(0.3)" }} />
+            <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to top, ${C.surface} 0%, rgba(0,0,0,0.3) 100%)` }} />
+            <div style={{ position: "absolute", top: 8, right: 10, fontFamily: "'Oswald', sans-serif", fontSize: 20, fontWeight: 700, color: isSel ? color : "rgba(255,255,255,0.5)", lineHeight: 1 }}>
               {efectivos.length}
             </div>
-            <div style={{ position: "absolute", top: 10, left: 10 }}>
-              <div style={{ width: 4, height: 28, borderRadius: 2, background: color }} />
-            </div>
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 3, background: isSel ? color : color + "66" }} />
           </div>
         ) : (
-          <div style={{ height: 80, background: color + "18", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", flexShrink: 0, borderBottom: `1px solid ${color}22` }}>
-            <div style={{ width: 4, height: 28, borderRadius: 2, background: color }} />
-            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 28, fontWeight: 700, color: isSel ? color : C.muted }}>{efectivos.length}</div>
+          <div style={{ height: 56, background: color + "18", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", flexShrink: 0, borderBottom: `1px solid ${color}44` }}>
+            <div style={{ width: 4, height: 24, borderRadius: 2, background: color }} />
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 24, fontWeight: 700, color: isSel ? color : C.muted }}>{efectivos.length}</div>
           </div>
         )}
         {/* Contenido */}
@@ -3839,9 +3837,12 @@ function EspEfectivosView({ espId, especialidades, roles, member, operaciones, o
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
       {/* Portada */}
       {esp.portadaUrl && (
-        <div style={{ borderRadius: "8px 8px 0 0", overflow: "hidden", height: 180, position: "relative" }}>
-          <img src={esp.portadaUrl} alt={esp.nombre} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center" }} />
-          <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to top, ${C.surface} 0%, transparent 50%)` }} />
+        <div style={{ borderRadius: "8px 8px 0 0", overflow: "hidden", height: 120, position: "relative" }}>
+          <img src={esp.portadaUrl} alt={esp.nombre} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%", filter: "brightness(0.5)" }} />
+          <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to top, ${C.surface} 0%, transparent 60%)` }} />
+          <div style={{ position: "absolute", bottom: 10, left: 14 }}>
+            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 16, fontWeight: 700, color, letterSpacing: 2, textTransform: "uppercase" }}>{esp.nombre}</div>
+          </div>
         </div>
       )}
       <div style={{ background: C.surface, border: `1px solid ${color}33`, borderTop: esp.portadaUrl ? "none" : undefined, borderRadius: esp.portadaUrl ? "0 0 8px 8px" : 8, padding: "20px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
@@ -3959,7 +3960,7 @@ function EspEfectivosView({ espId, especialidades, roles, member, operaciones, o
 
   return (
     <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-      <div style={{ width: 290, flexShrink: 0 }}>{sidebar}</div>
+      <div style={{ width: 250, flexShrink: 0 }}>{sidebar}</div>
       <div style={{ flex: 1, overflowX: "auto" }}>{tabla}</div>
     </div>
   );
