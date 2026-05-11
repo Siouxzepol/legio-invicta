@@ -3736,8 +3736,23 @@ function EspecialidadesView({ especialidades, roles, member, operaciones, orbatM
   if (isMobile) {
     return (
       <div>
-        <h2 style={S.h2}>Especialidades</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+        <h2 style={{ ...S.h2, marginBottom: 4 }}>Especialidades</h2>
+        <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: C.muted, letterSpacing: 1, marginBottom: 14 }}>
+          Unidades de formación especializada del clan
+        </div>
+        {/* Stats bar */}
+        <div style={{ display: "flex", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden", marginBottom: 16 }}>
+          {[
+            { label: "ESPECIALIDADES ACTIVAS", val: especialidades.length, color: C.accent },
+            { label: "EFECTIVOS ACTIVOS",      val: totalEfectivos,        color: C.green  },
+          ].map((s, i) => (
+            <div key={i} style={{ flex: 1, padding: "12px 16px", textAlign: "center", borderRight: i === 0 ? `1px solid ${C.border}` : "none" }}>
+              <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 22, fontWeight: 700, color: s.color }}>{s.val}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: C.muted, letterSpacing: 1, marginTop: 2 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
           {especialidades.map(e => <EspCard key={e._id} esp={e} />)}
         </div>
         {selEsp && <DetailPanel esp={selEsp} />}
