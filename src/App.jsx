@@ -3707,51 +3707,44 @@ function EspecialidadesView({ especialidades, roles, member, onGoToEsp }) {
     const efectivos = getEfectivos(esp._id);
     return (
       <div onClick={() => { setSelEsp(esp); setShowEfectivos(false); }} style={{
-        background: isSel ? color + "12" : C.surface,
+        background: isSel ? color + "10" : C.surface,
         border: `1px solid ${isSel ? color + "88" : C.border}`,
-        borderTop: `3px solid ${isSel ? color : color + "44"}`,
-        borderRadius: 8, cursor: "pointer", transition: "all 0.15s",
-        display: "flex", flexDirection: "column", overflow: "hidden",
+        borderLeft: `3px solid ${isSel ? color : color + "44"}`,
+        borderRadius: 8, padding: "16px", cursor: "pointer", transition: "all 0.15s",
+        display: "flex", flexDirection: "column", gap: 10,
       }}>
-        {/* Imagen de portada */}
-        {esp.portadaUrl ? (
-          <div style={{ position: "relative", height: 110, overflow: "hidden", flexShrink: 0 }}>
-            <img src={esp.portadaUrl} alt={esp.nombre} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center", filter: isSel ? "none" : "brightness(0.7)" }} />
-            <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to top, ${isSel ? color + "55" : "rgba(6,5,4,0.6)"} 0%, transparent 60%)` }} />
-            <span style={{ position: "absolute", top: 8, right: 8, ...S.badge(color), fontSize: 10 }}>{efectivos.length}</span>
+        {/* Fila superior: icono + contador */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+          {esp.portadaUrl
+            ? <img src={esp.portadaUrl} alt={esp.nombre} style={{ width: 48, height: 48, objectFit: "cover", objectPosition: "center top", borderRadius: 4, border: `1px solid ${color}44`, flexShrink: 0 }} />
+            : <div style={{ width: 48, height: 48, borderRadius: 4, background: color + "22", border: `1px solid ${color}44`, flexShrink: 0 }} />
+          }
+          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 26, fontWeight: 700, color: isSel ? color : C.muted, lineHeight: 1 }}>
+            {efectivos.length}
           </div>
-        ) : (
-          <div style={{ height: 60, background: color + "15", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <div style={{ width: 24, height: 24, borderRadius: "50%", background: color + "44", border: `2px solid ${color}66` }} />
-            <span style={{ position: "absolute", top: 8, right: 8, ...S.badge(color), fontSize: 10 }}>{efectivos.length}</span>
+        </div>
+        {/* Nombre */}
+        <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, fontWeight: 700, color: isSel ? color : C.text, letterSpacing: 2, textTransform: "uppercase", lineHeight: 1.2 }}>
+          {esp.nombre}
+        </div>
+        {/* Descripción */}
+        {esp.descripcion && (
+          <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: C.muted, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", flex: 1 }}>
+            {esp.descripcion}
           </div>
         )}
-        {/* Contenido */}
-        <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
-          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, fontWeight: 700, color: isSel ? color : C.text, letterSpacing: 2, textTransform: "uppercase" }}>
-            {esp.nombre}
-          </div>
-          {esp.descripcion && (
-            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: C.muted, lineHeight: 1.4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
-              {esp.descripcion}
-            </div>
-          )}
-          <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-            <button onClick={e => { e.stopPropagation(); setSelEsp(esp); setShowEfectivos(true); }} style={{
-              flex: 1, padding: "6px 4px", background: "transparent",
-              border: `1px solid ${color}44`, borderRadius: 4, color: color + "aa",
-              fontFamily: "'Oswald', sans-serif", fontSize: 10, letterSpacing: 1, cursor: "pointer", textTransform: "uppercase",
-            }}>
-              VER EFECTIVOS
-            </button>
-            <button onClick={e => { e.stopPropagation(); onGoToEsp(esp._id); }} style={{
-              flex: 1, padding: "6px 4px", background: "transparent",
-              border: `1px solid ${C.accent}44`, borderRadius: 4, color: C.accent + "aa",
-              fontFamily: "'Oswald', sans-serif", fontSize: 10, letterSpacing: 1, cursor: "pointer", textTransform: "uppercase",
-            }}>
-              IR A ESP.
-            </button>
-          </div>
+        {/* Fila inferior: efectivos + botón */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto", paddingTop: 4, borderTop: `1px solid ${C.border}` }}>
+          <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, letterSpacing: 1 }}>
+            {efectivos.length} EFECTIVOS
+          </span>
+          <button onClick={e => { e.stopPropagation(); setSelEsp(esp); setShowEfectivos(true); }} style={{
+            background: "transparent", border: "none", padding: 0,
+            color: color + "cc", fontFamily: "'Oswald', sans-serif", fontSize: 10,
+            letterSpacing: 1, cursor: "pointer", textTransform: "uppercase",
+          }}>
+            VER EFECTIVOS →
+          </button>
         </div>
       </div>
     );
