@@ -3837,12 +3837,9 @@ function EspEfectivosView({ espId, especialidades, roles, member, operaciones, o
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
       {/* Portada */}
       {esp.portadaUrl && (
-        <div style={{ borderRadius: "8px 8px 0 0", overflow: "hidden", height: 120, position: "relative" }}>
-          <img src={esp.portadaUrl} alt={esp.nombre} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%", filter: "brightness(0.5)" }} />
-          <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to top, ${C.surface} 0%, transparent 60%)` }} />
-          <div style={{ position: "absolute", bottom: 10, left: 14 }}>
-            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 16, fontWeight: 700, color, letterSpacing: 2, textTransform: "uppercase" }}>{esp.nombre}</div>
-          </div>
+        <div style={{ borderRadius: "8px 8px 0 0", overflow: "hidden", height: 130, position: "relative" }}>
+          <img src={esp.portadaUrl} alt={esp.nombre} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 30%", filter: "brightness(0.75)" }} />
+          <div style={{ position: "absolute", inset: 0, background: `linear-gradient(to top, ${C.surface} 0%, transparent 50%)` }} />
         </div>
       )}
       <div style={{ background: C.surface, border: `1px solid ${color}33`, borderTop: esp.portadaUrl ? "none" : undefined, borderRadius: esp.portadaUrl ? "0 0 8px 8px" : 8, padding: "20px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
