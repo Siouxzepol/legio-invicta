@@ -3212,159 +3212,281 @@ function CalendarioView({ ops, member }) {
 /* ─────────────────────────────────────── */
 /*  VISTA PÚBLICA OPERACIONES              */
 /* ─────────────────────────────────────── */
+const OP_TABS = [
+  { key: "planificada", label: "Planificadas" },
+  { key: "en_curso",    label: "En Curso"     },
+  { key: "completada",  label: "Completadas"  },
+  { key: "cancelada",   label: "Canceladas"   },
+  { key: "fallida",     label: "Fallidas"     },
+];
+
 function OperacionesView({ ops, member }) {
-  const [sel, setSel] = useState(null);
+  const [tabEstado, setTabEstado] = useState("planificada");
+  const [sel, setSel]             = useState(null);
+  const [mobileDetail, setMobileDetail] = useState(false);
+  const isMobile = useIsMobile();
+
+  const listaFiltrada = ops.filter(o => o.estado === tabEstado);
+
+  useEffect(() => {
+    const primera = ops.filter(o => o.estado === tabEstado)[0] || null;
+    setSel(primera);
+    setMobileDetail(false);
+  }, [tabEstado]);
+
+  useEffect(() => {
+    if (!sel) return;
+    const updated = ops.find(o => o._id === sel._id);
+    if (updated) setSel(updated);
+  }, [ops]);
 
   const setAsistencia = async (op, valor) => {
     const field = `asistencia.${member._id}`;
     await fbUpd("operaciones", op._id, { [field]: valor === null ? deleteField() : valor });
-    setSel(prev => {
-      if (!prev) return prev;
-      const a = { ...(prev.asistencia || {}) };
-      if (valor === null) delete a[member._id]; else a[member._id] = valor;
-      return { ...prev, asistencia: a };
-    });
   };
 
-  if (sel) {
-    const est     = OP_ESTADOS[sel.estado] || OP_ESTADOS.planificada;
-    const myVal   = sel.asistencia?.[member._id] || null;
-    const conf    = Object.values(sel.asistencia || {}).filter(v => v === "confirmada").length;
-    const bajasN  = Object.values(sel.asistencia || {}).filter(v => v === "baja").length;
-    const dudasN  = Object.values(sel.asistencia || {}).filter(v => v === "duda").length;
+  const getConf  = op => Object.values(op.asistencia || {}).filter(v => v === "confirmada").length;
+  const getBajas = op => Object.values(op.asistencia || {}).filter(v => v === "baja").length;
+  const getDudas = op => Object.values(op.asistencia || {}).filter(v => v === "duda").length;
+  const getMyVal = op => op.asistencia?.[member._id] || null;
+  const stripHtml = html => html ? html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim() : "";
+  const fmtFecha  = fecha => {
+    if (!fecha) return "—";
+    return new Date(fecha + "T12:00:00")
+      .toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })
+      .toUpperCase();
+  };
 
-    const AsBtn = ({ valor, label, color }) => (
-      <button
-        onClick={() => setAsistencia(sel, valor)}
-        style={{
-          ...S.btn(myVal === valor ? "primary" : "ghost"),
-          background: myVal === valor ? color : "transparent",
-          border: `1px solid ${color}`,
-          color: myVal === valor ? "#0a0c08" : color,
-          padding: "8px 20px", fontSize: 13,
-        }}>
-        {label}
-      </button>
-    );
+  const totalActivas = ops.filter(o => o.estado === "planificada" || o.estado === "en_curso").length;
+  const totalEnCurso = ops.filter(o => o.estado === "en_curso").length;
 
+  const TabsBar = () => (
+    <div style={{ display: "flex", gap: 4, marginBottom: 12, background: C.surface2, borderRadius: 6, padding: 4, border: `1px solid ${C.border}`, overflowX: "auto" }}>
+      {OP_TABS.map(t => {
+        const isActive = tabEstado === t.key;
+        const cnt      = ops.filter(o => o.estado === t.key).length;
+        const col      = (OP_ESTADOS[t.key] || {}).color || C.muted;
+        return (
+          <button key={t.key} onClick={() => setTabEstado(t.key)} style={{
+            flex: "0 0 auto", background: isActive ? col + "22" : "transparent",
+            border: isActive ? `1px solid ${col}55` : "1px solid transparent",
+            borderRadius: 4, padding: "7px 10px",
+            fontFamily: "'Oswald', sans-serif", fontSize: 11, letterSpacing: 1,
+            color: isActive ? col : C.muted, cursor: "pointer", textTransform: "uppercase", whiteSpace: "nowrap",
+          }}>
+            {t.label}{cnt > 0 ? ` (${cnt})` : ""}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const OpCard = ({ op, onClick }) => {
+    const isSel  = sel?._id === op._id;
+    const est    = OP_ESTADOS[op.estado] || OP_ESTADOS.planificada;
+    const conf   = getConf(op);
+    const myVal  = getMyVal(op);
+    const excerpt = stripHtml(op.descripcion);
     return (
-      <div>
-        <button style={{ ...S.btn("ghost"), marginBottom: 20 }} onClick={() => setSel(null)}>← Volver</button>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-          <span style={S.badge(est.color)}>{est.label}</span>
-          <span style={S.badge(C.accentDim)}>{sel.tipo}</span>
-          {sel.fecha && (
-            <span style={{ color: C.muted, fontSize: 12, fontFamily: "'Share Tech Mono', monospace" }}>
-              {new Date(sel.fecha + "T12:00:00").toLocaleDateString("es-ES", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
-            </span>
-          )}
+      <div onClick={onClick} style={{
+        background: isSel ? est.color + "10" : C.surface,
+        border: `1px solid ${isSel ? est.color + "66" : C.border}`,
+        borderLeft: `4px solid ${isSel ? est.color : est.color + "44"}`,
+        borderRadius: 6, padding: "14px 16px", cursor: "pointer", transition: "all 0.15s",
+      }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5, flexWrap: "wrap" }}>
+              <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, fontWeight: 700, color: isSel ? est.color : C.text, letterSpacing: 1, textTransform: "uppercase" }}>
+                {op.nombre}
+              </span>
+              {op.tipo && <span style={{ ...S.badge(C.accentDim), fontSize: 10 }}>{op.tipo}</span>}
+            </div>
+            <div style={{ display: "flex", gap: 12, marginBottom: excerpt ? 6 : 0, flexWrap: "wrap" }}>
+              {op.fecha && (
+                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: C.accent }}>
+                  {fmtFecha(op.fecha)}
+                </span>
+              )}
+              <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: C.green }}>
+                {conf} CONF
+              </span>
+              {myVal && (
+                <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: myVal === "confirmada" ? C.green : myVal === "duda" ? "#f59e0b" : C.danger }}>
+                  {myVal === "confirmada" ? "[TÚ: ✓]" : myVal === "duda" ? "[TÚ: ?]" : "[TÚ: BAJA]"}
+                </span>
+              )}
+            </div>
+            {excerpt && (
+              <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: C.muted, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                {excerpt}
+              </div>
+            )}
+          </div>
+          <span style={{ color: C.muted, fontSize: 16, marginTop: 2, flexShrink: 0 }}>›</span>
         </div>
-        <h2 style={S.h2}>{sel.nombre}</h2>
+      </div>
+    );
+  };
 
-        {sel.descripcion && (
-          <div style={{ ...S.card, marginBottom: 24, borderLeft: `3px solid ${C.accent}55` }}>
-            <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.muted, letterSpacing: 2, marginBottom: 8 }}>BRIEFING</div>
-            <div
-              className="legio-render"
-              style={{ color: C.text, lineHeight: 1.7, fontSize: 14 }}
-              dangerouslySetInnerHTML={{ __html: sel.descripcion }}
-            />
+  const DetailPanel = ({ op }) => {
+    if (!op) return (
+      <div style={{ ...S.card, display: "flex", alignItems: "center", justifyContent: "center", color: C.muted, fontFamily: "'Share Tech Mono', monospace", fontSize: 12, letterSpacing: 2, minHeight: 200 }}>
+        SELECCIONA UNA OPERACIÓN
+      </div>
+    );
+    const est   = OP_ESTADOS[op.estado] || OP_ESTADOS.planificada;
+    const myVal = getMyVal(op);
+    const conf  = getConf(op);
+    const bajas = getBajas(op);
+    const dudas = getDudas(op);
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* Header */}
+        <div style={{ background: C.surface, border: `1px solid ${est.color}44`, borderTop: `3px solid ${est.color}`, borderRadius: 8, padding: "16px 20px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+            <span style={{ ...S.badge(est.color) }}>{est.label}</span>
+            {op.tipo && <span style={{ ...S.badge(C.accentDim) }}>{op.tipo}</span>}
+            {op.fecha && (
+              <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: C.muted, marginLeft: "auto" }}>
+                {fmtFecha(op.fecha)}
+              </span>
+            )}
+          </div>
+          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 20, fontWeight: 700, color: est.color, letterSpacing: 2, textTransform: "uppercase" }}>
+            {op.nombre}
+          </div>
+        </div>
+
+        {/* Asistencia counters */}
+        <div style={{ display: "flex", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
+          {[
+            { label: "CONFIRMADOS", val: conf,  color: C.green    },
+            { label: "DUDAS",       val: dudas, color: "#f59e0b"  },
+            { label: "BAJAS",       val: bajas, color: C.danger   },
+          ].map((s, i) => (
+            <div key={i} style={{ flex: 1, padding: "12px 8px", textAlign: "center", borderRight: i < 2 ? `1px solid ${C.border}` : "none" }}>
+              <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 26, fontWeight: 700, color: s.color }}>{s.val}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, letterSpacing: 1 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Briefing */}
+        {op.descripcion && (
+          <div style={{ ...S.card, padding: "16px 20px" }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, letterSpacing: 3, marginBottom: 10 }}>// BRIEFING</div>
+            <div className="legio-render" style={{ color: C.text, lineHeight: 1.7, fontSize: 13 }} dangerouslySetInnerHTML={{ __html: op.descripcion }} />
           </div>
         )}
 
-        <div style={{ ...S.card, marginBottom: 24 }}>
-          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.muted, letterSpacing: 2, marginBottom: 16 }}>ASISTENCIA</div>
-          <div style={{ display: "flex", gap: 24, marginBottom: 16 }}>
-            <span style={{ fontSize: 13 }}>
-              <span style={{ color: C.green, fontWeight: 700, marginRight: 4 }}>{conf}</span>
-              <span style={{ color: C.muted }}>confirmados</span>
-            </span>
-            <span style={{ fontSize: 13 }}>
-              <span style={{ color: "#f59e0b", fontWeight: 700, marginRight: 4 }}>{dudasN}</span>
-              <span style={{ color: C.muted }}>dudas</span>
-            </span>
-            <span style={{ fontSize: 13 }}>
-              <span style={{ color: C.danger, fontWeight: 700, marginRight: 4 }}>{bajasN}</span>
-              <span style={{ color: C.muted }}>bajas</span>
-            </span>
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-            <AsBtn valor="confirmada" label="Confirmo asistencia" color={C.green} />
-            <AsBtn valor="duda"       label="Tengo dudas"         color="#f59e0b" />
-            <AsBtn valor="baja"       label="Doy baja"            color={C.danger} />
-            {myVal && (
-              <button style={{ ...S.btn("ghost"), padding: "8px 16px", fontSize: 13 }}
-                onClick={() => setAsistencia(sel, null)}>
-                Cancelar respuesta
-              </button>
-            )}
-          </div>
+        {/* Ficha asistencia */}
+        <div style={{ ...S.card, padding: "16px 20px" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, letterSpacing: 3, marginBottom: 12 }}>// FICHA A LA OPERACIÓN</div>
           {myVal && (
-            <div style={{ fontSize: 12, color: myVal === "confirmada" ? C.green : myVal === "duda" ? "#f59e0b" : C.danger, marginTop: 4 }}>
-              Tu estado: {myVal === "confirmada" ? "Confirmado" : myVal === "duda" ? "Duda" : "Baja"}
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, marginBottom: 10,
+              color: myVal === "confirmada" ? C.green : myVal === "duda" ? "#f59e0b" : C.danger }}>
+              ESTADO ACTUAL: {myVal === "confirmada" ? "CONFIRMADO ✓" : myVal === "duda" ? "DUDA ?" : "BAJA ✗"}
             </div>
           )}
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {[
+              { valor: "confirmada", label: "CONFIRMO",    color: C.green   },
+              { valor: "duda",       label: "CON DUDAS",   color: "#f59e0b" },
+              { valor: "baja",       label: "DOY BAJA",    color: C.danger  },
+            ].map(({ valor, label, color }) => (
+              <button key={valor} onClick={() => setAsistencia(op, valor)} style={{
+                flex: 1, padding: "9px 6px",
+                background: myVal === valor ? color + "22" : "transparent",
+                border: `1px solid ${myVal === valor ? color : color + "55"}`,
+                borderRadius: 4, color: myVal === valor ? color : color + "99",
+                fontFamily: "'Oswald', sans-serif", fontSize: 11, letterSpacing: 1,
+                cursor: "pointer", textTransform: "uppercase", transition: "all 0.15s",
+              }}>{label}</button>
+            ))}
+          </div>
+          {myVal && (
+            <button onClick={() => setAsistencia(op, null)} style={{ marginTop: 8, background: "transparent", border: "none", color: C.muted, fontFamily: "'Share Tech Mono', monospace", fontSize: 10, cursor: "pointer", letterSpacing: 1, padding: 0 }}>
+              × CANCELAR RESPUESTA
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  /* ── Stats bar (top) ── */
+  const StatsBar = () => (
+    <div style={{ display: "flex", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden", marginBottom: 16 }}>
+      {[
+        { label: "OPS ACTIVAS",   val: totalActivas,                                      color: C.accent  },
+        { label: "EN CURSO",      val: totalEnCurso,                                      color: C.green   },
+        { label: "TOTAL OPS",     val: ops.length,                                        color: C.muted   },
+        { label: "CONFIRMADOS",   val: sel ? getConf(sel) : "—",                         color: C.green   },
+        { label: "BAJAS",         val: sel ? getBajas(sel) : "—",                         color: C.danger  },
+      ].map((s, i) => (
+        <div key={i} style={{ flex: 1, padding: "12px 8px", textAlign: "center", borderRight: i < 4 ? `1px solid ${C.border}` : "none" }}>
+          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 20, fontWeight: 700, color: s.color }}>{s.val}</div>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: C.muted, letterSpacing: 1, marginTop: 2 }}>{s.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+
+  /* ── Mobile layout ── */
+  if (isMobile) {
+    if (mobileDetail && sel) {
+      return (
+        <div>
+          <button onClick={() => setMobileDetail(false)} style={{ ...S.btn("ghost"), marginBottom: 16, fontSize: 12 }}>← VOLVER A LISTA</button>
+          <DetailPanel op={sel} />
+        </div>
+      );
+    }
+    return (
+      <div>
+        <h2 style={S.h2}>Operaciones</h2>
+        <StatsBar />
+        <TabsBar />
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {listaFiltrada.length === 0 && (
+            <div style={{ color: C.muted, fontFamily: "'Share Tech Mono', monospace", fontSize: 12, padding: "20px 0", textAlign: "center" }}>
+              SIN OPERACIONES EN ESTA CATEGORÍA
+            </div>
+          )}
+          {listaFiltrada.map(op => (
+            <OpCard key={op._id} op={op} onClick={() => { setSel(op); setMobileDetail(true); }} />
+          ))}
         </div>
       </div>
     );
   }
 
-  const grupos = {
-    en_curso:    ops.filter(o => o.estado === "en_curso"),
-    planificada: ops.filter(o => o.estado === "planificada"),
-    completada:  ops.filter(o => o.estado === "completada"),
-    cancelada:   ops.filter(o => o.estado === "cancelada"),
-  };
-
+  /* ── Desktop layout: dos columnas ── */
   return (
     <div>
       <h2 style={S.h2}>Operaciones</h2>
-      {ops.length === 0 && <p style={{ color: C.muted }}>Sin operaciones registradas.</p>}
-      {Object.entries(grupos).map(([estadoKey, lista]) => {
-        if (!lista.length) return null;
-        const est = OP_ESTADOS[estadoKey];
-        return (
-          <div key={estadoKey} style={{ marginBottom: 32 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, borderLeft: `4px solid ${est.color}`, paddingLeft: 16, marginBottom: 16 }}>
-              <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 16, color: est.color, letterSpacing: 3, textTransform: "uppercase" }}>
-                {est.label}
-              </span>
-              <span style={S.badge(est.color)}>{lista.length}</span>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingLeft: 20 }}>
-              {lista.map(op => {
-                const myVal  = op.asistencia?.[member._id] || null;
-                const conf   = Object.values(op.asistencia || {}).filter(v => v === "confirmada").length;
-                return (
-                  <div key={op._id}
-                    style={{ ...S.card, cursor: "pointer", borderLeft: `2px solid ${est.color}55`, display: "flex", alignItems: "center", gap: 16, transition: "border-color 0.2s" }}
-                    onClick={() => setSel(op)}
-                    onMouseEnter={e => e.currentTarget.style.borderLeftColor = est.color}
-                    onMouseLeave={e => e.currentTarget.style.borderLeftColor = est.color + "55"}
-                  >
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
-                        <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, fontWeight: 600 }}>{op.nombre}</span>
-                        <span style={S.badge(C.accentDim)}>{op.tipo}</span>
-                      </div>
-                      <div style={{ display: "flex", gap: 12, color: C.muted, fontSize: 12 }}>
-                        {op.fecha && <span>{new Date(op.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}</span>}
-                        <span style={{ color: C.green }}>{conf} confirmados</span>
-                      </div>
-                    </div>
-                    {myVal && (
-                      <span style={S.badge(myVal === "confirmada" ? C.green : C.danger)}>
-                        {myVal === "confirmada" ? "Confirmado" : "Baja"}
-                      </span>
-                    )}
-                    <span style={{ color: C.muted, fontSize: 18 }}>›</span>
-                  </div>
-                );
-              })}
-            </div>
+      <StatsBar />
+      <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+        {/* LEFT */}
+        <div style={{ width: "52%", flexShrink: 0 }}>
+          <TabsBar />
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: "calc(100vh - 320px)", overflowY: "auto", paddingRight: 4 }}>
+            {listaFiltrada.length === 0 && (
+              <div style={{ color: C.muted, fontFamily: "'Share Tech Mono', monospace", fontSize: 12, padding: "24px 0", textAlign: "center" }}>
+                SIN OPERACIONES EN ESTA CATEGORÍA
+              </div>
+            )}
+            {listaFiltrada.map(op => (
+              <OpCard key={op._id} op={op} onClick={() => setSel(op)} />
+            ))}
           </div>
-        );
-      })}
+        </div>
+        {/* RIGHT */}
+        <div style={{ flex: 1 }}>
+          <DetailPanel op={sel} />
+        </div>
+      </div>
     </div>
   );
 }
