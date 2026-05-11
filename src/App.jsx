@@ -367,7 +367,7 @@ export default function App() {
             {view === "calendario"     && <CalendarioView ops={operaciones} member={member} />}
             {view === "orbat"          && <OrbatView unidades={orbatUnidades} miembros={orbatMiembros} roles={roles} especialidades={especialidades} condecoraciones={condecoraciones} salaFama={salaFama} />}
             {view === "sala_fama"      && <SalaFamaView condecoraciones={condecoraciones} roles={roles} />}
-            {view === "especialidades" && <EspecialidadesView especialidades={especialidades} />}
+            {view === "especialidades" && <EspecialidadesView especialidades={especialidades} roles={roles} member={member} onGoToEsp={id => { setEspId(id); setView("especialidad"); }} />}
             {view === "especialidad"  && espId && <EspecialidadDetalleView espId={espId} member={member} isJefe={isJefe} canDo={canDo} especialidades={especialidades} />}
             {view === "foro"           && <ForoView member={member} isJefe={isJefe} canDo={canDo} hilos={foroHilos} />}
             {view === "admin"          && <AdminPanel roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} canDo={canDo} orbatUnidades={orbatUnidades} orbatMiembros={orbatMiembros} member={member} especialidades={especialidades} operaciones={operaciones} condecoraciones={condecoraciones} salaFama={salaFama} salaMandos={salaMandos} foroHilos={foroHilos} />}
@@ -3583,52 +3583,221 @@ function OperacionesView({ ops, member }) {
 /* ─────────────────────────────────────── */
 /*  VISTA PÚBLICA ESPECIALIDADES           */
 /* ─────────────────────────────────────── */
-function EspecialidadesView({ especialidades }) {
+function EspecialidadesView({ especialidades, roles, member, onGoToEsp }) {
   const orbatMiembros = useCollection("orbat_miembros");
+  const allMembers    = useCollection("members");
+  const isMobile      = useIsMobile();
 
-  const getEfectivosWithEsp = (espId) =>
-    orbatMiembros.filter(m => (m.espIds || []).includes(espId));
+  const [selEsp,        setSelEsp]        = useState(null);
+  const [showEfectivos, setShowEfectivos] = useState(false);
+
+  useEffect(() => {
+    if (especialidades.length && !selEsp) setSelEsp(especialidades[0]);
+  }, [especialidades]);
+
+  const getEfectivos = espId => orbatMiembros.filter(m => (m.espIds || []).includes(espId));
+
+  const getRangoLabel = memberId => {
+    const mem = allMembers.find(m => m._id === memberId);
+    if (!mem) return null;
+    const ids = getMemberRoleIds(mem);
+    const rol = roles.filter(r => ids.includes(r._id)).find(r => r.insigniaUrl) || roles.find(r => ids.includes(r._id));
+    return rol?.name || null;
+  };
+
+  const getAntiguedad = memberId => {
+    const mem = allMembers.find(m => m._id === memberId);
+    if (!mem?.createdAt) return "—";
+    const ms   = mem.createdAt.seconds ? mem.createdAt.seconds * 1000 : new Date(mem.createdAt).getTime();
+    const diff = Math.floor((Date.now() - ms) / (1000 * 60 * 60 * 24 * 30));
+    return diff <= 0 ? "< 1 mes" : `${diff} ${diff === 1 ? "mes" : "meses"}`;
+  };
+
+  const totalEfectivos = especialidades.reduce((n, e) => n + getEfectivos(e._id).length, 0);
+
+  /* ── DETAIL PANEL ── */
+  const DetailPanel = ({ esp }) => {
+    if (!esp) return (
+      <div style={{ ...S.card, display: "flex", alignItems: "center", justifyContent: "center", color: C.muted, fontFamily: "'Share Tech Mono', monospace", fontSize: 12, letterSpacing: 2, minHeight: 200 }}>
+        SELECCIONA UNA ESPECIALIDAD
+      </div>
+    );
+    const color    = esp.color || C.accent;
+    const efectivos = getEfectivos(esp._id);
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* Header */}
+        <div style={{ background: C.surface, border: `1px solid ${color}44`, borderTop: `3px solid ${color}`, borderRadius: 8, padding: "18px 20px" }}>
+          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 22, fontWeight: 700, color, letterSpacing: 2, textTransform: "uppercase" }}>{esp.nombre}</div>
+          {esp.descripcion && (
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>{esp.descripcion}</div>
+          )}
+        </div>
+
+        {/* Botones */}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setShowEfectivos(v => !v)} style={{
+            flex: 1, padding: "10px 8px",
+            background: showEfectivos ? color + "22" : "transparent",
+            border: `1px solid ${showEfectivos ? color : color + "55"}`,
+            borderRadius: 4, color: showEfectivos ? color : color + "aa",
+            fontFamily: "'Oswald', sans-serif", fontSize: 12, letterSpacing: 1,
+            cursor: "pointer", textTransform: "uppercase",
+          }}>
+            VER EFECTIVOS ({efectivos.length})
+          </button>
+          <button onClick={() => onGoToEsp(esp._id)} style={{
+            flex: 1, padding: "10px 8px",
+            background: "transparent", border: `1px solid ${C.accent}55`,
+            borderRadius: 4, color: C.accent,
+            fontFamily: "'Oswald', sans-serif", fontSize: 12, letterSpacing: 1,
+            cursor: "pointer", textTransform: "uppercase",
+          }}>
+            IR A ESPECIALIDAD
+          </button>
+        </div>
+
+        {/* Lista de efectivos */}
+        {showEfectivos && (
+          <div style={{ ...S.card, padding: "16px 20px" }}>
+            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, letterSpacing: 3, marginBottom: 12 }}>
+              // EFECTIVOS ASIGNADOS
+            </div>
+            {efectivos.length === 0 ? (
+              <p style={{ color: C.muted, fontSize: 13 }}>Sin efectivos asignados en el ORBAT.</p>
+            ) : efectivos.map(m => {
+              const rango      = getRangoLabel(m.memberId);
+              const antiguedad = getAntiguedad(m.memberId);
+              const memData    = allMembers.find(mem => mem._id === m.memberId);
+              const estado     = memData?.accessStatus || "activo";
+              return (
+                <div key={m._id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: `1px solid ${C.border}20` }}>
+                  {/* Avatar silueta */}
+                  <div style={{ width: 44, height: 44, borderRadius: "50%", overflow: "hidden", border: `1px solid ${color}44`, flexShrink: 0, background: "#0a0c08", position: "relative" }}>
+                    <img src="/capturas/silueta.png" alt="" style={{ width: "100%", height: "100%", objectFit: "cover", filter: "invert(1)", mixBlendMode: "screen", opacity: 0.55 }} />
+                  </div>
+                  {/* Datos */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.text, textTransform: "uppercase", letterSpacing: 1 }}>{m.nombre || m.handle}</div>
+                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted }}>@{m.handle}</div>
+                  </div>
+                  {/* Rango */}
+                  {rango && <span style={{ ...S.badge(color), fontSize: 10, flexShrink: 0 }}>{rango}</span>}
+                  {/* Antigüedad */}
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted }}>{antiguedad}</div>
+                    <span style={{ ...S.badge(estado === "activo" ? C.green : C.danger), fontSize: 9, marginTop: 3, display: "inline-block" }}>
+                      {estado.toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /* ── GRID CARD ── */
+  const EspCard = ({ esp }) => {
+    const isSel    = selEsp?._id === esp._id;
+    const color    = esp.color || C.accent;
+    const efectivos = getEfectivos(esp._id);
+    return (
+      <div onClick={() => { setSelEsp(esp); setShowEfectivos(false); }} style={{
+        background: isSel ? color + "12" : C.surface,
+        border: `1px solid ${isSel ? color + "88" : C.border}`,
+        borderTop: `3px solid ${isSel ? color : color + "44"}`,
+        borderRadius: 8, padding: "18px 16px", cursor: "pointer", transition: "all 0.15s",
+        display: "flex", flexDirection: "column", gap: 8,
+      }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+          <div style={{ width: 10, height: 10, borderRadius: "50%", background: color, marginTop: 4, flexShrink: 0 }} />
+          <span style={{ ...S.badge(color), fontSize: 10 }}>{efectivos.length}</span>
+        </div>
+        <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 16, fontWeight: 700, color: isSel ? color : C.text, letterSpacing: 2, textTransform: "uppercase" }}>
+          {esp.nombre}
+        </div>
+        {esp.descripcion && (
+          <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: C.muted, lineHeight: 1.4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+            {esp.descripcion}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+          <button onClick={e => { e.stopPropagation(); setSelEsp(esp); setShowEfectivos(true); }} style={{
+            flex: 1, padding: "6px 4px", background: "transparent",
+            border: `1px solid ${color}44`, borderRadius: 4, color: color + "aa",
+            fontFamily: "'Oswald', sans-serif", fontSize: 10, letterSpacing: 1, cursor: "pointer", textTransform: "uppercase",
+          }}>
+            VER EFECTIVOS
+          </button>
+          <button onClick={e => { e.stopPropagation(); onGoToEsp(esp._id); }} style={{
+            flex: 1, padding: "6px 4px", background: "transparent",
+            border: `1px solid ${C.accent}44`, borderRadius: 4, color: C.accent + "aa",
+            fontFamily: "'Oswald', sans-serif", fontSize: 10, letterSpacing: 1, cursor: "pointer", textTransform: "uppercase",
+          }}>
+            IR A ESP.
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  if (isMobile) {
+    return (
+      <div>
+        <h2 style={S.h2}>Especialidades</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+          {especialidades.map(e => <EspCard key={e._id} esp={e} />)}
+        </div>
+        {selEsp && <DetailPanel esp={selEsp} />}
+      </div>
+    );
+  }
 
   return (
     <div>
-      <h2 style={S.h2}>Especialidades</h2>
-      {especialidades.length === 0 ? (
-        <p style={{ color: C.muted }}>Sin especialidades definidas.</p>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          {especialidades.map(e => {
-            const efectivos = getEfectivosWithEsp(e._id);
-            const color     = e.color || C.accent;
-            return (
-              <div key={e._id}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, borderLeft: `4px solid ${color}`, paddingLeft: 16, marginBottom: 12 }}>
-                  <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 17, color, letterSpacing: 3, textTransform: "uppercase" }}>
-                    {e.nombre}
-                  </span>
-                  <span style={S.badge(color)}>{efectivos.length} efectivos</span>
-                </div>
-                {e.descripcion && (
-                  <p style={{ color: C.muted, fontSize: 13, paddingLeft: 20, marginBottom: 12 }}>{e.descripcion}</p>
-                )}
-                {efectivos.length === 0 ? (
-                  <p style={{ color: C.muted, paddingLeft: 20, fontSize: 13 }}>Sin efectivos asignados en el ORBAT.</p>
-                ) : (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, paddingLeft: 20 }}>
-                    {efectivos.map(m => (
-                      <div key={m._id} style={{ ...S.card, padding: "8px 14px", borderLeft: `2px solid ${color}55`, display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 12, color }}>@{m.handle}</span>
-                        {m.nombre && m.nombre !== m.handle && (
-                          <span style={{ fontSize: 13 }}>{m.nombre}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h2 style={{ ...S.h2, marginBottom: 4 }}>Especialidades</h2>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: C.muted, letterSpacing: 1 }}>
+            Unidades de formación especializada del clan
+          </div>
         </div>
-      )}
+        <div style={{ display: "flex", gap: 0, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
+          {[
+            { label: "ESPECIALIDADES ACTIVAS", val: especialidades.length, color: C.accent },
+            { label: "EFECTIVOS ACTIVOS",      val: totalEfectivos,        color: C.green  },
+          ].map((s, i) => (
+            <div key={i} style={{ padding: "12px 20px", textAlign: "center", borderRight: i === 0 ? `1px solid ${C.border}` : "none" }}>
+              <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 22, fontWeight: 700, color: s.color }}>{s.val}</div>
+              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: C.muted, letterSpacing: 1, marginTop: 2 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Dos columnas */}
+      <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+        {/* Grid cards */}
+        <div style={{ flex: 1 }}>
+          {especialidades.length === 0
+            ? <p style={{ color: C.muted }}>Sin especialidades definidas.</p>
+            : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+                {especialidades.map(e => <EspCard key={e._id} esp={e} />)}
+              </div>
+            )
+          }
+        </div>
+        {/* Panel detalle */}
+        <div style={{ width: "38%", flexShrink: 0 }}>
+          <DetailPanel esp={selEsp} />
+        </div>
+      </div>
     </div>
   );
 }
