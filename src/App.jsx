@@ -1746,18 +1746,6 @@ function OrbatView({ unidades, miembros, roles, especialidades, condecoraciones,
           </div>
         )}
         <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, color: C.text }}>{m.nombre}</div>
-        {(m.espIds || []).length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 3, justifyContent: "center", marginTop: 3 }}>
-            {(m.espIds || []).map(id => {
-              const esp = especialidades.find(e => e._id === id);
-              return esp ? (
-                <span key={id} style={{ fontSize: 9, fontFamily: "'Share Tech Mono', monospace", color: esp.color || C.accentDim }}>
-                  {esp.nombre}
-                </span>
-              ) : null;
-            })}
-          </div>
-        )}
         {decos.length > 0 && (
           <div style={{ display: "flex", gap: 3, marginTop: 3, justifyContent: "center" }}>
             {decos.map(d => (
