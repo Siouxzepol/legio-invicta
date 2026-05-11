@@ -2395,26 +2395,30 @@ function HojaServicioView({ member, roles, operaciones, orbatMiembros, orbatUnid
   /* ── CONDECORACIONES ── */
   const Condecoraciones = () => (
     <div style={{ ...S.card, padding: "18px 20px" }}>
-      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, letterSpacing: 3, marginBottom: 12 }}>// CONDECORACIONES</div>
+      <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, letterSpacing: 3, marginBottom: 14 }}>// CONDECORACIONES</div>
       {myDecos.length === 0
         ? <p style={{ color: C.muted, fontSize: 13 }}>Sin condecoraciones registradas.</p>
         : myDecos.map(d => (
-          <div key={d._id} style={{ padding: "10px 0", borderBottom: `1px solid ${C.border}20` }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-              {d.imagenUrl
-                ? <img src={d.imagenUrl} alt={d.nombre} style={{ width: 28, height: 28, objectFit: "contain", flexShrink: 0 }} />
-                : <div style={{ width: 28, height: 28, background: C.accentDim + "33", borderRadius: 4, flexShrink: 0 }} />
-              }
+          <div key={d._id} style={{ padding: "14px 0", borderBottom: `1px solid ${C.border}20` }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 6 }}>
+              {/* Medalla grande */}
+              <div style={{ width: 60, height: 60, borderRadius: 6, background: C.accentDim + "18", border: `1px solid ${C.accent}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                {d.imagenUrl
+                  ? <img src={d.imagenUrl} alt={d.nombre} style={{ width: 52, height: 52, objectFit: "contain" }} />
+                  : <div style={{ width: 36, height: 36, background: C.accentDim + "44", borderRadius: 4 }} />
+                }
+              </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.accent, textTransform: "uppercase", letterSpacing: 1 }}>{d.nombre}</div>
-                {d.fecha && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted }}>{fmtFecha(d.fecha)}</div>}
+                <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, color: C.accent, textTransform: "uppercase", letterSpacing: 1, lineHeight: 1.2 }}>{d.nombre}</div>
+                {d.fecha && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, marginTop: 3 }}>{fmtFecha(d.fecha)}</div>}
+                {d.otorgadoPor && <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, marginTop: 1 }}>por @{d.otorgadoPor}</div>}
               </div>
             </div>
             {d.descripcion && (
-              <div className="rich-text" style={{ color: C.muted, fontSize: 12, paddingLeft: 36, lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: d.descripcion }} />
+              <div className="rich-text" style={{ color: C.muted, fontSize: 12, paddingLeft: 74, lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: d.descripcion }} />
             )}
             {d.motivo && (
-              <div style={{ paddingLeft: 36, marginTop: 6 }}>
+              <div style={{ paddingLeft: 74, marginTop: 6 }}>
                 <div style={{ fontSize: 9, color: C.accentDim, letterSpacing: 2, fontFamily: "'Share Tech Mono', monospace", marginBottom: 3 }}>MOTIVO</div>
                 <div className="rich-text" style={{ color: C.muted, fontSize: 12, lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: d.motivo }} />
               </div>
