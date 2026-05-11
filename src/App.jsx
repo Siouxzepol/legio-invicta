@@ -367,8 +367,9 @@ export default function App() {
             {view === "calendario"     && <CalendarioView ops={operaciones} member={member} />}
             {view === "orbat"          && <OrbatView unidades={orbatUnidades} miembros={orbatMiembros} roles={roles} especialidades={especialidades} condecoraciones={condecoraciones} salaFama={salaFama} />}
             {view === "sala_fama"      && <SalaFamaView condecoraciones={condecoraciones} roles={roles} />}
-            {view === "especialidades" && <EspecialidadesView especialidades={especialidades} roles={roles} member={member} onGoToEsp={id => { setEspId(id); setView("especialidad"); }} />}
+            {view === "especialidades" && <EspecialidadesView especialidades={especialidades} roles={roles} member={member} operaciones={operaciones} orbatMiembros={orbatMiembros} onGoToEsp={id => { setEspId(id); setView("especialidad"); }} onGoToEfectivos={id => { setEspId(id); setView("esp_efectivos"); }} />}
             {view === "especialidad"  && espId && <EspecialidadDetalleView espId={espId} member={member} isJefe={isJefe} canDo={canDo} especialidades={especialidades} />}
+            {view === "esp_efectivos" && espId && <EspEfectivosView espId={espId} especialidades={especialidades} roles={roles} member={member} operaciones={operaciones} orbatMiembros={orbatMiembros} onGoToEsp={id => { setEspId(id); setView("especialidad"); }} onVolver={() => setView("especialidades")} />}
             {view === "foro"           && <ForoView member={member} isJefe={isJefe} canDo={canDo} hilos={foroHilos} />}
             {view === "admin"          && <AdminPanel roles={roles} isJefe={isJefe} isSuperAdmin={isSuperAdmin} canDo={canDo} orbatUnidades={orbatUnidades} orbatMiembros={orbatMiembros} member={member} especialidades={especialidades} operaciones={operaciones} condecoraciones={condecoraciones} salaFama={salaFama} salaMandos={salaMandos} foroHilos={foroHilos} />}
           </div>
@@ -3583,119 +3584,91 @@ function OperacionesView({ ops, member }) {
 /* ─────────────────────────────────────── */
 /*  VISTA PÚBLICA ESPECIALIDADES           */
 /* ─────────────────────────────────────── */
-function EspecialidadesView({ especialidades, roles, member, onGoToEsp }) {
-  const orbatMiembros = useCollection("orbat_miembros");
+function EspecialidadesView({ especialidades, roles, member, operaciones, orbatMiembros, onGoToEsp, onGoToEfectivos }) {
   const allMembers    = useCollection("members");
+  const espAccesos    = useCollection("especialidad_accesos").filter(a => a.memberId === member._id);
   const isMobile      = useIsMobile();
-
-  const [selEsp,        setSelEsp]        = useState(null);
-  const [showEfectivos, setShowEfectivos] = useState(false);
+  const [selEsp, setSelEsp] = useState(null);
 
   useEffect(() => {
     if (especialidades.length && !selEsp) setSelEsp(especialidades[0]);
   }, [especialidades]);
 
-  const getEfectivos = espId => orbatMiembros.filter(m => (m.espIds || []).includes(espId));
-
-  const getRangoLabel = memberId => {
-    const mem = allMembers.find(m => m._id === memberId);
-    if (!mem) return null;
-    const ids = getMemberRoleIds(mem);
-    const rol = roles.filter(r => ids.includes(r._id)).find(r => r.insigniaUrl) || roles.find(r => ids.includes(r._id));
-    return rol?.name || null;
-  };
-
-  const getAntiguedad = memberId => {
-    const mem = allMembers.find(m => m._id === memberId);
-    if (!mem?.createdAt) return "—";
-    const ms   = mem.createdAt.seconds ? mem.createdAt.seconds * 1000 : new Date(mem.createdAt).getTime();
-    const diff = Math.floor((Date.now() - ms) / (1000 * 60 * 60 * 24 * 30));
-    return diff <= 0 ? "< 1 mes" : `${diff} ${diff === 1 ? "mes" : "meses"}`;
-  };
-
+  const getEfectivos   = espId => orbatMiembros.filter(m => (m.espIds || []).includes(espId));
   const totalEfectivos = especialidades.reduce((n, e) => n + getEfectivos(e._id).length, 0);
 
-  /* ── DETAIL PANEL ── */
+  /* ── PANEL DERECHO fiel al boceto ── */
   const DetailPanel = ({ esp }) => {
     if (!esp) return (
-      <div style={{ ...S.card, display: "flex", alignItems: "center", justifyContent: "center", color: C.muted, fontFamily: "'Share Tech Mono', monospace", fontSize: 12, letterSpacing: 2, minHeight: 200 }}>
+      <div style={{ ...S.card, display: "flex", alignItems: "center", justifyContent: "center", color: C.muted, fontFamily: "'Share Tech Mono', monospace", fontSize: 12, letterSpacing: 2, minHeight: 260 }}>
         SELECCIONA UNA ESPECIALIDAD
       </div>
     );
-    const color    = esp.color || C.accent;
+    const color     = esp.color || C.accent;
     const efectivos = getEfectivos(esp._id);
+    const miAcceso  = espAccesos.find(a => a.espId === esp._id || a.espNombre === esp.nombre);
+
+    const InfoRow = ({ label, children }) => (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.border}20` }}>
+        <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, letterSpacing: 1 }}>{label}</span>
+        {children}
+      </div>
+    );
 
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {/* Header */}
-        <div style={{ background: C.surface, border: `1px solid ${color}44`, borderTop: `3px solid ${color}`, borderRadius: 8, padding: "18px 20px" }}>
-          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 22, fontWeight: 700, color, letterSpacing: 2, textTransform: "uppercase" }}>{esp.nombre}</div>
+      <div style={{ background: C.surface, border: `1px solid ${color}33`, borderRadius: 8, overflow: "hidden" }}>
+        {/* Header con color */}
+        <div style={{ background: color + "18", borderBottom: `1px solid ${color}33`, padding: "16px 20px" }}>
+          <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: C.muted, letterSpacing: 3, marginBottom: 6, textTransform: "uppercase" }}>
+            ESPECIALIDAD SELECCIONADA
+          </div>
+          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 24, fontWeight: 700, color, letterSpacing: 3, textTransform: "uppercase", lineHeight: 1 }}>
+            {esp.nombre}
+          </div>
           {esp.descripcion && (
-            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 13, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>{esp.descripcion}</div>
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: C.muted, marginTop: 6, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+              {esp.descripcion}
+            </div>
           )}
         </div>
 
+        {/* Filas de info */}
+        <div style={{ padding: "4px 20px 12px" }}>
+          <InfoRow label="EFECTIVOS ASIGNADOS">
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 16, fontWeight: 700, color }}>{efectivos.length}</span>
+              <span style={{ ...S.badge(C.green), fontSize: 9 }}>ACTIVO</span>
+            </div>
+          </InfoRow>
+          <InfoRow label="ESTADO (TU ACCESO)">
+            {miAcceso
+              ? <span style={{ ...S.badge(espEstadoColor(miAcceso.estado)), fontSize: 9 }}>{espEstadoLabel(miAcceso.estado).toUpperCase()}</span>
+              : <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted }}>SIN SOLICITUD</span>
+            }
+          </InfoRow>
+        </div>
+
         {/* Botones */}
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => setShowEfectivos(v => !v)} style={{
-            flex: 1, padding: "10px 8px",
-            background: showEfectivos ? color + "22" : "transparent",
-            border: `1px solid ${showEfectivos ? color : color + "55"}`,
-            borderRadius: 4, color: showEfectivos ? color : color + "aa",
-            fontFamily: "'Oswald', sans-serif", fontSize: 12, letterSpacing: 1,
+        <div style={{ padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+          <button onClick={() => onGoToEfectivos(esp._id)} style={{
+            width: "100%", padding: "11px 0",
+            background: color + "22", border: `1px solid ${color}66`,
+            borderRadius: 4, color,
+            fontFamily: "'Oswald', sans-serif", fontSize: 12, letterSpacing: 2,
             cursor: "pointer", textTransform: "uppercase",
           }}>
-            VER EFECTIVOS ({efectivos.length})
+            VER EFECTIVOS
           </button>
           <button onClick={() => onGoToEsp(esp._id)} style={{
-            flex: 1, padding: "10px 8px",
-            background: "transparent", border: `1px solid ${C.accent}55`,
+            width: "100%", padding: "11px 0",
+            background: "transparent", border: `1px solid ${C.accent}44`,
             borderRadius: 4, color: C.accent,
-            fontFamily: "'Oswald', sans-serif", fontSize: 12, letterSpacing: 1,
+            fontFamily: "'Oswald', sans-serif", fontSize: 12, letterSpacing: 2,
             cursor: "pointer", textTransform: "uppercase",
           }}>
             IR A ESPECIALIDAD
           </button>
         </div>
-
-        {/* Lista de efectivos */}
-        {showEfectivos && (
-          <div style={{ ...S.card, padding: "16px 20px" }}>
-            <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, letterSpacing: 3, marginBottom: 12 }}>
-              // EFECTIVOS ASIGNADOS
-            </div>
-            {efectivos.length === 0 ? (
-              <p style={{ color: C.muted, fontSize: 13 }}>Sin efectivos asignados en el ORBAT.</p>
-            ) : efectivos.map(m => {
-              const rango      = getRangoLabel(m.memberId);
-              const antiguedad = getAntiguedad(m.memberId);
-              const memData    = allMembers.find(mem => mem._id === m.memberId);
-              const estado     = memData?.accessStatus || "activo";
-              return (
-                <div key={m._id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: `1px solid ${C.border}20` }}>
-                  {/* Avatar silueta */}
-                  <div style={{ width: 44, height: 44, borderRadius: "50%", overflow: "hidden", border: `1px solid ${color}44`, flexShrink: 0, background: "#0a0c08", position: "relative" }}>
-                    <img src="/capturas/silueta.png" alt="" style={{ width: "100%", height: "100%", objectFit: "cover", filter: "invert(1)", mixBlendMode: "screen", opacity: 0.55 }} />
-                  </div>
-                  {/* Datos */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 13, color: C.text, textTransform: "uppercase", letterSpacing: 1 }}>{m.nombre || m.handle}</div>
-                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted }}>@{m.handle}</div>
-                  </div>
-                  {/* Rango */}
-                  {rango && <span style={{ ...S.badge(color), fontSize: 10, flexShrink: 0 }}>{rango}</span>}
-                  {/* Antigüedad */}
-                  <div style={{ textAlign: "right", flexShrink: 0 }}>
-                    <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted }}>{antiguedad}</div>
-                    <span style={{ ...S.badge(estado === "activo" ? C.green : C.danger), fontSize: 9, marginTop: 3, display: "inline-block" }}>
-                      {estado.toUpperCase()}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
     );
   };
@@ -3706,14 +3679,13 @@ function EspecialidadesView({ especialidades, roles, member, onGoToEsp }) {
     const color     = esp.color || C.accent;
     const efectivos = getEfectivos(esp._id);
     return (
-      <div onClick={() => { setSelEsp(esp); setShowEfectivos(false); }} style={{
+      <div onClick={() => setSelEsp(esp)} style={{
         background: isSel ? color + "10" : C.surface,
         border: `1px solid ${isSel ? color + "88" : C.border}`,
         borderLeft: `3px solid ${isSel ? color : color + "44"}`,
         borderRadius: 8, padding: "16px", cursor: "pointer", transition: "all 0.15s",
         display: "flex", flexDirection: "column", gap: 10,
       }}>
-        {/* Fila superior: icono + contador */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
           {esp.portadaUrl
             ? <img src={esp.portadaUrl} alt={esp.nombre} style={{ width: 48, height: 48, objectFit: "cover", objectPosition: "center top", borderRadius: 4, border: `1px solid ${color}44`, flexShrink: 0 }} />
@@ -3723,22 +3695,19 @@ function EspecialidadesView({ especialidades, roles, member, onGoToEsp }) {
             {efectivos.length}
           </div>
         </div>
-        {/* Nombre */}
         <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, fontWeight: 700, color: isSel ? color : C.text, letterSpacing: 2, textTransform: "uppercase", lineHeight: 1.2 }}>
           {esp.nombre}
         </div>
-        {/* Descripción */}
         {esp.descripcion && (
           <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 11, color: C.muted, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", flex: 1 }}>
             {esp.descripcion}
           </div>
         )}
-        {/* Fila inferior: efectivos + botón */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto", paddingTop: 4, borderTop: `1px solid ${C.border}` }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto", paddingTop: 6, borderTop: `1px solid ${C.border}` }}>
           <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, letterSpacing: 1 }}>
             {efectivos.length} EFECTIVOS
           </span>
-          <button onClick={e => { e.stopPropagation(); setSelEsp(esp); setShowEfectivos(true); }} style={{
+          <button onClick={e => { e.stopPropagation(); onGoToEfectivos(esp._id); }} style={{
             background: "transparent", border: "none", padding: 0,
             color: color + "cc", fontFamily: "'Oswald', sans-serif", fontSize: 10,
             letterSpacing: 1, cursor: "pointer", textTransform: "uppercase",
@@ -3764,7 +3733,6 @@ function EspecialidadesView({ especialidades, roles, member, onGoToEsp }) {
 
   return (
     <div>
-      {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h2 style={{ ...S.h2, marginBottom: 4 }}>Especialidades</h2>
@@ -3772,7 +3740,7 @@ function EspecialidadesView({ especialidades, roles, member, onGoToEsp }) {
             Unidades de formación especializada del clan
           </div>
         </div>
-        <div style={{ display: "flex", gap: 0, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
+        <div style={{ display: "flex", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
           {[
             { label: "ESPECIALIDADES ACTIVAS", val: especialidades.length, color: C.accent },
             { label: "EFECTIVOS ACTIVOS",      val: totalEfectivos,        color: C.green  },
@@ -3785,24 +3753,201 @@ function EspecialidadesView({ especialidades, roles, member, onGoToEsp }) {
         </div>
       </div>
 
-      {/* Dos columnas */}
       <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-        {/* Grid cards */}
         <div style={{ flex: 1 }}>
           {especialidades.length === 0
             ? <p style={{ color: C.muted }}>Sin especialidades definidas.</p>
-            : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+            : <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
                 {especialidades.map(e => <EspCard key={e._id} esp={e} />)}
               </div>
-            )
           }
         </div>
-        {/* Panel detalle */}
-        <div style={{ width: "38%", flexShrink: 0 }}>
+        <div style={{ width: "34%", flexShrink: 0 }}>
           <DetailPanel esp={selEsp} />
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────── */
+/*  VISTA LISTA DE EFECTIVOS (ESP)         */
+/* ─────────────────────────────────────── */
+function EspEfectivosView({ espId, especialidades, roles, member, operaciones, orbatMiembros, onGoToEsp, onVolver }) {
+  const allMembers = useCollection("members");
+  const espAccesos = useCollection("especialidad_accesos").filter(a => a.memberId === member._id);
+  const isMobile   = useIsMobile();
+
+  const esp      = especialidades.find(e => e._id === espId);
+  const color    = esp?.color || C.accent;
+  const efectivos = orbatMiembros.filter(m => (m.espIds || []).includes(espId));
+  const miAcceso  = espAccesos.find(a => a.espId === espId || a.espNombre === esp?.nombre);
+
+  const getRango = memberId => {
+    const mem = allMembers.find(m => m._id === memberId);
+    if (!mem) return null;
+    const ids = getMemberRoleIds(mem);
+    const rol = roles.filter(r => ids.includes(r._id)).find(r => r.insigniaUrl) || roles.find(r => ids.includes(r._id));
+    return rol?.name || null;
+  };
+
+  const getAntiguedad = memberId => {
+    const mem = allMembers.find(m => m._id === memberId);
+    if (!mem?.createdAt) return "—";
+    const ms   = mem.createdAt.seconds ? mem.createdAt.seconds * 1000 : new Date(mem.createdAt).getTime();
+    const meses = Math.floor((Date.now() - ms) / (1000 * 60 * 60 * 24 * 30));
+    if (meses < 1)  return "< 1 MES";
+    if (meses < 12) return `${meses} ${meses === 1 ? "MES" : "MESES"}`;
+    const años  = Math.floor(meses / 12);
+    const resto = meses % 12;
+    return `${años} AÑO${años > 1 ? "S" : ""}${resto > 0 ? ` ${resto} MES${resto > 1 ? "ES" : ""}` : ""}`;
+  };
+
+  const getUltimaOp = memberId => {
+    const ops = operaciones.filter(o => o.asistencia?.[memberId]);
+    if (!ops.length) return null;
+    return ops.sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""))[0];
+  };
+
+  const getEspPrincipal = (orbatM) => {
+    const espPId = orbatM.espPrincipalId || (orbatM.espIds || [])[0];
+    return especialidades.find(e => e._id === espPId) || null;
+  };
+
+  if (!esp) return <div style={{ color: C.muted }}>Especialidad no encontrada.</div>;
+
+  const SidebarInfo = ({ label, children }) => (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px solid ${C.border}20` }}>
+      <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, letterSpacing: 1 }}>{label}</span>
+      {children}
+    </div>
+  );
+
+  const sidebar = (
+    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+      {/* Portada */}
+      {esp.portadaUrl && (
+        <div style={{ borderRadius: "8px 8px 0 0", overflow: "hidden", height: 120 }}>
+          <img src={esp.portadaUrl} alt={esp.nombre} style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.6)" }} />
+        </div>
+      )}
+      <div style={{ background: C.surface, border: `1px solid ${color}33`, borderTop: esp.portadaUrl ? "none" : undefined, borderRadius: esp.portadaUrl ? "0 0 8px 8px" : 8, padding: "18px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+        {/* Nombre */}
+        <div>
+          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 20, fontWeight: 700, color, letterSpacing: 3, textTransform: "uppercase" }}>{esp.nombre}</div>
+          {esp.descripcion && (
+            <div style={{ fontFamily: "'Inter', sans-serif", fontSize: 12, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>{esp.descripcion}</div>
+          )}
+        </div>
+        {/* Info rows */}
+        <div>
+          <SidebarInfo label="EFECTIVOS ASIGNADOS">
+            <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 14, fontWeight: 700, color }}>{efectivos.length}</span>
+          </SidebarInfo>
+          <SidebarInfo label="TU ESTADO">
+            {miAcceso
+              ? <span style={{ ...S.badge(espEstadoColor(miAcceso.estado)), fontSize: 9 }}>{espEstadoLabel(miAcceso.estado).toUpperCase()}</span>
+              : <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted }}>SIN SOLICITUD</span>
+            }
+          </SidebarInfo>
+        </div>
+        {/* Botones */}
+        <button onClick={() => onGoToEsp(espId)} style={{
+          width: "100%", padding: "10px 0",
+          background: C.danger + "22", border: `1px solid ${C.danger}66`,
+          borderRadius: 4, color: C.danger,
+          fontFamily: "'Oswald', sans-serif", fontSize: 12, letterSpacing: 2,
+          cursor: "pointer", textTransform: "uppercase",
+        }}>
+          SOLICITAR ACCESO
+        </button>
+        <button onClick={onVolver} style={{
+          background: "transparent", border: "none", padding: "4px 0",
+          color: C.muted, fontFamily: "'Share Tech Mono', monospace", fontSize: 10,
+          letterSpacing: 1, cursor: "pointer", textTransform: "uppercase", textAlign: "left",
+        }}>
+          ← VOLVER A ESPECIALIDADES
+        </button>
+      </div>
+    </div>
+  );
+
+  const tabla = (
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, overflow: "hidden" }}>
+      {/* Header tabla */}
+      <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 15, color: C.text, letterSpacing: 2 }}>
+          EFECTIVOS ASIGNADOS <span style={{ color }}> ({efectivos.length})</span>
+        </div>
+      </div>
+      {/* Cabeceras */}
+      <div style={{ display: "grid", gridTemplateColumns: "44px 1fr 120px 100px 80px 110px 90px", gap: 0, padding: "8px 20px", borderBottom: `1px solid ${C.border}20` }}>
+        {["", "NOMBRE", "RANGO", "ANTIGÜEDAD", "ESTADO", "ESPECIALIZACIÓN", "ÚLTIMA ACT."].map((h, i) => (
+          <div key={i} style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: C.muted, letterSpacing: 1, textAlign: i > 1 ? "center" : "left" }}>{h}</div>
+        ))}
+      </div>
+      {/* Filas */}
+      {efectivos.length === 0
+        ? <div style={{ padding: "24px 20px", color: C.muted, fontFamily: "'Share Tech Mono', monospace", fontSize: 12 }}>SIN EFECTIVOS ASIGNADOS</div>
+        : efectivos.map(m => {
+            const rango      = getRango(m.memberId);
+            const antiguedad = getAntiguedad(m.memberId);
+            const memData    = allMembers.find(mem => mem._id === m.memberId);
+            const estado     = memData?.accessStatus || "activo";
+            const ultimaOp   = getUltimaOp(m.memberId);
+            const espP       = getEspPrincipal(m);
+            return (
+              <div key={m._id} style={{ display: "grid", gridTemplateColumns: "44px 1fr 120px 100px 80px 110px 90px", gap: 0, padding: "10px 20px", borderBottom: `1px solid ${C.border}15`, alignItems: "center" }}>
+                {/* Avatar */}
+                <div style={{ width: 36, height: 36, borderRadius: "50%", overflow: "hidden", border: `1px solid ${color}44`, background: "#0a0c08", flexShrink: 0 }}>
+                  <img src="/capturas/silueta.png" alt="" style={{ width: "100%", height: "100%", objectFit: "cover", filter: "invert(1)", mixBlendMode: "screen", opacity: 0.55 }} />
+                </div>
+                {/* Nombre */}
+                <div>
+                  <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 12, color: C.text, textTransform: "uppercase", letterSpacing: 1 }}>{m.nombre || m.handle}</div>
+                  <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted }}>@{m.handle}</div>
+                </div>
+                {/* Rango */}
+                <div style={{ textAlign: "center" }}>
+                  {rango ? <span style={{ ...S.badge(color), fontSize: 9 }}>{rango}</span> : <span style={{ color: C.muted, fontSize: 10 }}>—</span>}
+                </div>
+                {/* Antigüedad */}
+                <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted, textAlign: "center" }}>{antiguedad}</div>
+                {/* Estado */}
+                <div style={{ textAlign: "center" }}>
+                  <span style={{ ...S.badge(estado === "activo" ? C.green : C.danger), fontSize: 9 }}>{estado.toUpperCase()}</span>
+                </div>
+                {/* Especialización principal */}
+                <div style={{ textAlign: "center" }}>
+                  {espP ? <span style={{ ...S.badge(espP.color || C.accentDim), fontSize: 9 }}>{espP.nombre}</span> : <span style={{ color: C.muted, fontSize: 10 }}>—</span>}
+                </div>
+                {/* Última actuación */}
+                <div style={{ textAlign: "right" }}>
+                  {ultimaOp?.fecha
+                    ? <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.muted }}>{new Date(ultimaOp.fecha + "T12:00:00").toLocaleDateString("es-ES", { day: "2-digit", month: "short" }).toUpperCase()}</span>
+                    : <span style={{ color: C.muted, fontSize: 10 }}>—</span>
+                  }
+                </div>
+              </div>
+            );
+          })
+      }
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {sidebar}
+        {tabla}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+      <div style={{ width: 240, flexShrink: 0 }}>{sidebar}</div>
+      <div style={{ flex: 1, overflowX: "auto" }}>{tabla}</div>
     </div>
   );
 }
